@@ -1,8 +1,16 @@
+"""
+Author: Nikhil Kadapala
+Date: 2-19-2025
+Course: CS 881 - Spring 2025, UNH, Durham, USA
+Description: This program is used to process the initial dataset and re-format it to match instruction fine-tuning data style.
+             This is part of the task2 of the CheckThat! Lab's CLEF 2025 Edition.
+""" 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, Trainer, TrainingArguments
 from peft import LoraConfig, get_peft_model, PeftModel
 from datasets import Dataset
 import pandas as pd
+import argparse
 
 # 1. Define the dataset (example data)
 data = [
@@ -100,3 +108,33 @@ def generate_normalized_claim(input_text, model, tokenizer):
 test_input = "The CEO says profits will soar next quarter!"
 print(generate_normalized_claim(test_input, model, tokenizer))
 # Expected output: Something like "Profits increase"
+
+def main():
+
+    parser = argparse.ArgumentParser(description="Fine-tuning the chosen model with the formatted instruction dataset.")
+    parser.add_argument("-d", "--data", type=str, help="path to the data in the following format: ./data/dev.csv")
+    parser.add_argument("-m", "--model", type=str, help="Fine-tuned Model name.")
+    args = parser.parse_args()
+    
+    file_path: str
+    FINETUNE_DATA: pd.DataFrame
+    
+    if args.data is None:
+        file_path = "./data/finetune_data.jsonl"
+    else:
+        file_path = args.data
+    
+    if args.model is None:
+        print("Please provide the fine-tuned model name.")
+        exit()
+    else:
+        model_name = args.model
+    
+    FINETUNE_DATA = pd.read_csv(file_path)
+    
+    METEROR_SCORE = evaluate_model(model_name, DEV_DATA["post"], DEV_DATA["normalized claim"])
+    
+    print(f"Average METEOR Score: {METEROR_SCORE}")
+    
+if __name__ == "__main__":
+    main()
