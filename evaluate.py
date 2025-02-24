@@ -15,36 +15,44 @@ from nltk.tokenize import word_tokenize
 from nltk.translate.meteor_score import meteor_score
 import numpy as np
 import pandas as pd
+import json
 from tqdm import tqdm
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 
-def get_claim(model_name: str, user_prompt: str) -> str:
-    client = Together(api_key=os.getenv("TOGETHER_API_KEY"))
-
-    response = client.chat.completions.create(
-        model=model_name,
-        messages=[
-            {
-                "role": "user",
-                "content": user_prompt,
-            }
-        ],
-        max_tokens=50,
-        temperature=0.7,
-        top_p=0.7,
+def get_claim(model: Any, tokenizer: Any, user_prompt: str) -> str:
+    sys_promt = """You are a helpful AI assistant that can generate a summary of claims made in a given text in the style of a news headline.
+    Based on the input text, extract a claim that is being made or implied and return it as a json object."""
+    inputs = tokenizer(f"{sys_promt}\ninput_text:{user_prompt}", return_tensors="pt").to('cuda')
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=30,
+        pad_token_id=tokenizer.eos_token_id,
+        num_return_sequences=1,
+        no_repeat_ngram_size=2,
+        do_sample=True, 
         top_k=50,
-        repetition_penalty=1,
-        stop=["<|eot_id|>"],
-        stream=False
+        top_p=0.95,
+        temperature=0.3
     )
-    return response.choices[0].message.content
+    generated_claim = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+    torch.cuda.empty_cache()
+    return generated_claim
 
-def evaluate_model(model_name, input_data, labels):
+def evaluate_model(model: Any, tokenizer: Any, input_data: Any):
     scores = []
-    for data, label in tqdm(zip(input_data, labels), total=len(input_data)):
-        response = get_claim(model_name, data)
+    responses = []
+    for index, item in tqdm(input_data.iterrows(), total=len(input_data)):
+        response = get_claim(model, tokenizer, item['post'])
+        #print(f"Response: {response}")
         token_res = word_tokenize(response)
-        token_label = word_tokenize(label)
+        token_label = word_tokenize(item['normalized claim'])
         scores.append(meteor_score([token_res], token_label))
+        responses.append(response)
+    with open("generated_claims_dev.jsonl", "w") as f:
+        json.dump(responses,f, ensure_ascii=False)
+        
     return np.mean(scores)
 
 def main():
@@ -62,15 +70,35 @@ def main():
     else:
         file_path = args.data
     
-    if args.model is None:
-        print("Please provide the fine-tuned model name.")
-        exit()
-    else:
-        model_name = args.model
-    
     DEV_DATA = pd.read_csv(file_path)
     
-    METEROR_SCORE = evaluate_model(model_name, DEV_DATA["post"], DEV_DATA["normalized claim"])
+    print("CUDA available:", torch.cuda.is_available())
+    if torch.cuda.is_available():
+        print("CUDA version:", torch.version.cuda)
+        print("Device name:", torch.cuda.get_device_name(0))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    base_model_path = "./meta-llama/Meta-Llama-3.1-8B-Instruct"  # Local directory of the base model
+    lora_adapter_path = "./lora-adapters"  # Path to your LoRA adapters
+
+    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True)
+
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+        tokenizer.pad_token = tokenizer.eos_token
+
+
+    model = AutoModelForCausalLM.from_pretrained(
+        base_model_path,
+        local_files_only=True,
+        torch_dtype=torch.float16,
+        device_map="auto" 
+    )
+    model.config.pad_token_id = tokenizer.pad_token_id
+    model = PeftModel.from_pretrained(model, lora_adapter_path, is_trainable=False)
+    model = model.to(device)
+    
+    METEROR_SCORE = evaluate_model(model, tokenizer, DEV_DATA[:50])
     
     print(f"Average METEOR Score: {METEROR_SCORE}")
     

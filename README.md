@@ -3,122 +3,96 @@
 Given a noisy, unstructured social media post, the task is to simplify it into a concise form.
 This is a text generation task in which systems have to generate the normlized claims for the goven social media posts.
 
-The task comprises two settings:
-- **Monolingual**: where the train and test is given for language L
-- **Zero-shot**: only test data is given for language L
+# Steps to run the code
 
-__Table of contents:__
+## 1. Start by processing the dataset to match the instruction finetuning format for the together.ai platform
 
-<!-- - [Evaluation Results](#evaluation-results) -->
-- [List of Versions](#list-of-versions)
-- [Contents of the Task 2 Directory](#contents-of-the-repository)
-- [Input Data Format](#input-data-format)
-- [Output Data Format](#output-data-format)
-- [Evaluation Metrics](#evaluation-metrics)
-- [Credits](#credits)
+```
+python3 process_data.py
+```
 
-<!-- ## Evaluation Results
+   Run the above command on CLI and this will generate a JSONL file with reformatted data.
 
+## 2. Upload the file to together.ai's fine-tuning queue.
+    
+   First, set your account's API key to an environment variable named TOGETHER_API_KEY:
+    
+ ```
+export TOGETHER_API_KEY=xxxxx
+ ```
+    
+  Install together library 
+    
+  ```
+  pip install together --upgrade
+  ```
+    
+   Run the below command to upload the file
+    
+  ```
+  python3 upload.py
+  ```
+    
+   You should see a response that looks something like the below:
+    
+  ```
+    {
+    id='file-629e58b4-ff73-438c-b2cc-f69542b27980', 
+    object=<ObjectType.File: 'file'>, 
+    created_at=1732573871, 
+    type=None, 
+    purpose=<FilePurpose.FineTune: 'fine-tune'>, 
+    filename='small_coqa.jsonl', 
+    bytes=0, 
+    line_count=0, 
+    processed=False, 
+    FileType='jsonl'
+    }
+  ```  
+## 3. Create a fine-tuning job on together.ai
+Run the below command to create a fine-tuning job on together.ai
 
-## List of Versions
-- [20/01/2025] Data released.
+### Python
+```
+python3 together_finetune.py -m model_name -f file-id
+```
+### CLI
+```
+together fine-tuning create \
+  --training-file "file-629e58b4-ff73-438c-b2cc-f69542b27980" \
+  --model "meta-llama/Meta-Llama-3.1-8B-Instruct-Reference" \
+  --lora
+```
+The response object will have all the details of your job, including its ID and a `status` key that starts out as "pending":
+```
+{
+  id='ft-66592697-0a37-44d1-b6ea-9908d1c81fbd', 
+  training_file='file-63b9f097-e582-4d2e-941e-4b541aa7e328', 
+  validation_file='', 
+  model='meta-llama/Meta-Llama-3.1-8B-Instruct-Reference', 
+  output_name='zainhas/Meta-Llama-3.1-8B-Instruct-Reference-30b975fd', 
+... 
+  status=<FinetuneJobStatus.STATUS_PENDING: 'pending'>
+}
+```
+## 4. Go to your Dashboard on togther.ai and look under jobs to monitor the fine-tuning progress. Alternatively, you can also use the below command to get the status of the job.
+```
+together fine-tuning retrieve "ft-66592697-0a37-44d1-b6ea-9908d1c81fbd"
+```
+Your fine-tuning job will go through several phases, including `Pending` , `Queued` , `Running` , `Uploading` , and `Completed` .
+## 5. Once the fine-tuning jo is completed, download the Adapter checkpoints to run locally with your base model.
 
-<!-- * **subtask-2A-english**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [21/02/2023] previously released training data contained also validation data, they are now split in two separate files.
-  - [30/01/2023] training data are released.
-* **subtask-2A-arabic**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [10/03/2023] training and validation data are released.
-* **subtask-2A-dutch**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [16/03/2023] training and validation data are released.
-* **subtask-2A-german**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [02/03/2023] training and validation data are released.
-* **subtask-2A-italian**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [21/02/2023] validation data are released.
-  - [30/01/2023] training data are released.
-* **subtask-2A-turkish**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [02/03/2023] training and validation data are released.
-* **subtask-2A-multilingual**
-  - [03/05/2023] (unlabeled) test data are released.
-  - [23/03/2023] training and validation data are released. -->
-
-## Contents of the Task 2 Directory
-
-- Data folder: [data](./data)
-  - Contains a subfolder for  train, test and dev sets. 
-  - Each split has subfolders for each language, in the csv format.
-<!-- - Main folder: [baseline](./baseline)<br/>
-  - Contains a single file, baseline.py, used to train a baseline and provide predictions.
-- Main folder: [scorer](./scorer)<br/>
-  - Contains a single file, evaluate.py, that checks the format of a submission and evaluate the various metrics. -->
-- [README.md](./README.md)
-
-## Input Data Format
-
-The data will be provided as a CSV file with two columns:
-> post, <TAB> normalized claim 
-
-## Output Data Format
-
-The output must be a CSV format with only one column:
-> normalized claim.
-
-DO NOT shuffle the test data. 
-
-## Evaluation Metrics
-
-We will use the METEOR measure for the ranking of teams.
-
-<!--
-There is a limit of 5 runs (total and not per day), and only one person from a team is allowed to submit runs.
-
-Submission Link: Coming Soon
-
-Evaluation File task3/evaluation/CLEF_-_CheckThat__Task3ab_-_Evaluation.txt -->
-
-<!-- ## Scorers
-
-To evaluate the output of your model which should be in the output format required, please run the script below:
-
-> python evaluate.py -g dev_truth.tsv -p dev_predicted.tsv
-
-where dev_predicted.tsv is the output of your model on the dev set, and dev_truth.tsv is the golden label file provided by us.
-
-The file can be used also to validate the format of the submission, simply use the provided test file as gold data.
-The evaluation will not be performed, but the format of your input will be checked.
-
-
-## Baselines
-
-The script to train the baseline is provided in the related directory.
-The script can be run as follow:
-
-> python baseline.py -trp train_data.tsv -ttp dev_data.tsv
-
-where train_data.tsv is the file to be used for training and dev_data.tsv is the file on which doing the prediction.
-
-The baseline is a logistic regressor trained on a Sentence-BERT multilingual representation of the data.
-
-<!-- ### Task 3: Multi-Class Fake News Detection of News Articles
-
-For this task, we have created a baseline system. The baseline system can be found at https://zenodo.org/record/6362498
- --> 
-
-## Submission
-
-TBA
-
-## Related Work
-
-Information regarding the task and data can be found in the following paper:
-
-> Megha Sundriyal, Tanmoy Chakraborty, and Preslav Nakov. [From Chaos to Clarity: Claim Normalization to Empower Fact-Checking.](https://aclanthology.org/2023.findings-emnlp.439/) Findings of the Association for Computational Linguistics: EMNLP 2023. 2023. pp. 6594 - 6609.
-
-
-## Credits
-Please find it on the task website: https://checkthat.gitlab.io/clef2025/task2/
+## 6. Download the base version of your chosen model from hugging face
+Authenticate yourself first by logging into your Hugging Face account
+```
+huggingface-cli login
+```
+Run the below command to download the model
+```
+huggingface-cli download meta-llama/Meta-Llama-3.1-8B-Instruct --include "original/*" --local-dir meta-llama/Meta-Llama-3.1-8B-Instruct
+```
+## 7. Run local Inference to evaluate the performance on the validation set
+```
+python3 evaluate.py
+```
+Make sure you update the paths to the model and adapters in your evaluate.py file
