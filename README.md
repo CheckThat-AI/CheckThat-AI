@@ -4,8 +4,14 @@ Given a noisy, unstructured social media post, the task is to simplify it into a
 This is a text generation task in which systems have to generate the normlized claims for the goven social media posts.
 
 # Steps to run the code
+Prior to everything, you need o make sure you have all the dependencies installed. Run the following command first to install the dependencies and libraries.
 
-## 1. Start by processing the dataset to match the instruction finetuning format for the together.ai platform
+```
+pip install -r requirements.txt
+```
+
+## 1. Data Pre-processing
+Start by processing the dataset to match the instruction finetuning format for the together.ai platform
 
 ```
 python3 process_data.py
@@ -84,7 +90,8 @@ Your fine-tuning job will go through several phases, including `Pending` , `Queu
 ## 5. Download Checkpoints
 Once the fine-tuning jo is completed, download the Adapter checkpoints to run locally with your base model.
 
-## 6. Download the base version of your chosen model from hugging face
+## 6. Downloading model from hugging face
+Download the base version of your chosen model from hugging face
 Authenticate yourself first by logging into your Hugging Face account
 ```
 huggingface-cli login
@@ -93,7 +100,8 @@ Run the below command to download the model
 ```
 huggingface-cli download meta-llama/Meta-Llama-3.1-8B-Instruct --include "original/*" --local-dir meta-llama/Meta-Llama-3.1-8B-Instruct
 ```
-## 7. Run local Inference to evaluate the performance on the validation set
+## 7. Run local Inference 
+To evaluate the performance on the validation set, run inference locally using the below command
 ```
 python3 evaluate.py
 ```
