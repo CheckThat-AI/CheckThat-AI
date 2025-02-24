@@ -92,6 +92,7 @@ Once the fine-tuning jo is completed, download the Adapter checkpoints to run lo
 
 ## 6. Downloading model from hugging face
 Download the base version of your chosen model from hugging face
+
 Authenticate yourself first by logging into your Hugging Face account
 ```
 huggingface-cli login
