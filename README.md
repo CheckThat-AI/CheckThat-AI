@@ -75,12 +75,14 @@ The response object will have all the details of your job, including its ID and 
   status=<FinetuneJobStatus.STATUS_PENDING: 'pending'>
 }
 ```
-## 4. Go to your Dashboard on togther.ai and look under jobs to monitor the fine-tuning progress. Alternatively, you can also use the below command to get the status of the job.
+## 4. Monitoring the fine-tuning status
+### Go to your Dashboard on togther.ai and look under jobs to monitor the fine-tuning progress. Alternatively, you can also use the below command to get the status of the job.
 ```
 together fine-tuning retrieve "ft-66592697-0a37-44d1-b6ea-9908d1c81fbd"
 ```
 Your fine-tuning job will go through several phases, including `Pending` , `Queued` , `Running` , `Uploading` , and `Completed` .
-## 5. Once the fine-tuning jo is completed, download the Adapter checkpoints to run locally with your base model.
+## 5. Download Checkpoints
+### Once the fine-tuning jo is completed, download the Adapter checkpoints to run locally with your base model.
 
 ## 6. Download the base version of your chosen model from hugging face
 Authenticate yourself first by logging into your Hugging Face account
