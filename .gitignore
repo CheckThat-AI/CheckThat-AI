@@ -1,0 +1,7 @@
+.venv
+.vs
+./my-base-model
+.github
+__pycache__
+*.pyc
+*.pyo
