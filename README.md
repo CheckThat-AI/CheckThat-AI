@@ -1,10 +1,10 @@
 # Task 2: Claim Normalization
 
 Given a noisy, unstructured social media post, the task is to simplify it into a concise form.
-This is a text generation task in which systems have to generate the normlized claims for the goven social media posts.
+This is a text generation task in which systems generate the normalized claims for the given social media posts.
 
 # Steps to run the code
-Prior to everything, you need o make sure you have all the dependencies installed. Run the following command first to install the dependencies and libraries.
+Before everything, you need to make sure you have all the dependencies installed. Run the following command first to install the dependencies and libraries.
 
 ```
 pip install -r requirements.txt
@@ -23,19 +23,19 @@ python3 process_data.py
     
    First, set your account's API key to an environment variable named TOGETHER_API_KEY:
     
- ```
+ ```bash
 export TOGETHER_API_KEY=xxxxx
  ```
     
   Install together library 
     
-  ```
+  ```bash
   pip install together --upgrade
   ```
     
    Run the below command to upload the file
     
-  ```
+  ```bash
   python3 upload.py
   ```
     
@@ -63,7 +63,7 @@ Run the below command to create a fine-tuning job on together.ai
 python3 together_finetune.py -m model_name -f file-id
 ```
 ### CLI
-```
+```bash
 together fine-tuning create \
   --training-file "file-629e58b4-ff73-438c-b2cc-f69542b27980" \
   --model "meta-llama/Meta-Llama-3.1-8B-Instruct-Reference" \
@@ -83,7 +83,7 @@ The response object will have all the details of your job, including its ID and 
 ```
 ## 4. Monitoring the fine-tuning status
 Go to your Dashboard on togther.ai and look under jobs to monitor the fine-tuning progress. Alternatively, you can also use the below command to get the status of the job.
-```
+```bash
 together fine-tuning retrieve "ft-66592697-0a37-44d1-b6ea-9908d1c81fbd"
 ```
 Your fine-tuning job will go through several phases, including `Pending` , `Queued` , `Running` , `Uploading` , and `Completed` .
@@ -94,16 +94,16 @@ Once the fine-tuning jo is completed, download the Adapter checkpoints to run lo
 Download the base version of your chosen model from hugging face
 
 Authenticate yourself first by logging into your Hugging Face account
-```
+```bash
 huggingface-cli login
 ```
 Run the below command to download the model
-```
+```bash
 huggingface-cli download meta-llama/Meta-Llama-3.1-8B-Instruct --include "original/*" --local-dir meta-llama/Meta-Llama-3.1-8B-Instruct
 ```
 ## 7. Run local Inference 
 To evaluate the performance on the validation set, run inference locally using the below command
-```
+```bash
 python3 evaluate.py
 ```
 Make sure you update the paths to the model and adapters in your evaluate.py file
