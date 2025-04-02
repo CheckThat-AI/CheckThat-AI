@@ -98,7 +98,7 @@ def main():
     model = PeftModel.from_pretrained(model, lora_adapter_path, is_trainable=False)
     model = model.to(device)
     
-    METEROR_SCORE = evaluate_model(model, tokenizer, DEV_DATA[:50])
+    METEROR_SCORE = evaluate_model(model, tokenizer, DEV_DATA)
     
     print(f"Average METEOR Score: {METEROR_SCORE}")
     
