@@ -20,28 +20,29 @@ from tqdm import tqdm
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
-from pydantic import BaseModel, Field
 
-class NormalizedClaim(BaseModel):
-    claim: str = Field(description="The claim made in the input text.")
-    
 def get_claim(model: Any, tokenizer: Any, user_prompt: str) -> str:
     sys_promt = """You are a helpful AI assistant that can generate a summary of claims made in a given text in the style of a news headline.
     Based on the input text, extract a claim that is being made or implied and return it as a json object."""
-    inputs = tokenizer(f"{sys_promt}\ninput_text:{user_prompt}\nGenerate output in the following JSON schema: {json.dumps(NormalizedClaim.model_json_schema())}", return_tensors="pt").to('cuda')
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=30,
-        pad_token_id=tokenizer.eos_token_id,
-        num_return_sequences=1,
-        no_repeat_ngram_size=2,
-        do_sample=True, 
-        top_k=50,
-        top_p=0.95,
-        temperature=0.3
-    )
-    generated_claim = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
-    torch.cuda.empty_cache()
+    inputs = tokenizer(f"{sys_promt}\ninput_text:{user_prompt}", return_tensors="pt")
+    try:
+        inputs = inputs.to(model.device)
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=30,
+            pad_token_id=tokenizer.eos_token_id,
+            num_return_sequences=1,
+            no_repeat_ngram_size=2,
+            do_sample=True, 
+            top_k=50,
+            top_p=0.95,
+            temperature=0.3
+        )
+        generated_claim = tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+    except Exception as e:
+        print(f"Error generating claim: {e}")
+        generated_claim = "Error generating claim"
+        
     return generated_claim
 
 def evaluate_model(model: Any, tokenizer: Any, input_data: Any):
@@ -82,10 +83,10 @@ def main():
         print("Device name:", torch.cuda.get_device_name(0))
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    base_model_path = "./meta-llama/Meta-Llama-3.1-8B-Instruct"  # Local directory of the base model
+    base_model_path = "./Llama-3.3-70B-Instruct"  # Local directory of the base model
     lora_adapter_path = "./lora-adapters"  # Path to your LoRA adapters
 
-    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True)
+    tokenizer = AutoTokenizer.from_pretrained(base_model_path, local_files_only=True,use_fast=False,trust_remote_code=True)
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
@@ -96,13 +97,11 @@ def main():
         base_model_path,
         local_files_only=True,
         torch_dtype=torch.float16,
-        device_map="auto" 
     )
     model.config.pad_token_id = tokenizer.pad_token_id
-    model = PeftModel.from_pretrained(model, lora_adapter_path, is_trainable=False)
+    #model = PeftModel.from_pretrained(model, lora_adapter_path, is_trainable=False)
     model = model.to(device)
-    
-    METEROR_SCORE = evaluate_model(model, tokenizer, DEV_DATA)
+    METEROR_SCORE = evaluate_model(model, tokenizer, DEV_DATA[0:5])
     
     print(f"Average METEOR Score: {METEROR_SCORE}")
     

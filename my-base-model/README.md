@@ -1,2 +1,0 @@
-This is the folder where your model downloaded from huugingface would be stored.
-It will automatically create a new folder and save the files there. make sure you update the paths to the model and adapters in your evaluate.py file

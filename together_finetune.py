@@ -85,7 +85,7 @@ def main():
         process = subprocess.Popen(['together', 'fine-tuning', 'list-events', ft_id], stdout=subprocess.PIPE, text=True)
         output, _ = process.communicate()
         print(output)
-        if "Job completed" in output:
+        if "Job finished" in output:
             break
         time.sleep(60)
 
