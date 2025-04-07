@@ -20,7 +20,7 @@ def read_prompt(path: Any) -> str:
     """
     file_path: str
     if path is None:
-        file_path = "./prompt.jsonl"
+        file_path = "./data/prompt.jsonl"
     else:
         file_path = path
     try:

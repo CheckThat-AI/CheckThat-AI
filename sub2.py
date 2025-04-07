@@ -62,7 +62,7 @@ def evaluate_model(model: Any, input_data: Any):
         label_tokens = word_tokenize(item['normalized claim'])
         scores.append(meteor_score([response_tokens], label_tokens))
         responses.append(response)
-    with open("generated_claims_dev.jsonl", "w", encoding="utf-8") as f:
+    with open("./data/generated_claims_dev.jsonl", "w", encoding="utf-8") as f:
         json.dump(responses,f, ensure_ascii=False)
         
     return np.mean(scores)
