@@ -1,7 +1,7 @@
 import os
 import argparse
 from together import Together
-from typing import Any
+from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
 import json
@@ -20,7 +20,7 @@ class NormalizedClaim(BaseModel):
     claim: str = Field(description="The claim made in the input text.")
 
 def get_claim(model: Any, user_prompt: str) -> str:
-    sys_promt = """You are a helpful AI assistant that can extract a claim made in a given text.
+    sys_promt = """You are a helpful AI assistant that can extract a claim made in a given text. Always return the claim in English even if the original input is in a different language.
     input:Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC None
     claim: Pakistani government appoints former army general to head medical regulatory body
     input: A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed None
@@ -41,7 +41,7 @@ def get_claim(model: Any, user_prompt: str) -> str:
     input: Corona virus before it reaches the lungs it remains in the throat for four days and at this time the person begins to cough and have throat pains. If he drinks water a lot and gargling with warm water & salt or vinegar eliminates the virus. Spread this information because you can save someone with this information
     claim: Gargling water can proect against coronavirus
     """
-    inputs = f"{sys_promt}\ninput_text:{user_prompt}"
+    inputs = f"{sys_promt}\ninput:{user_prompt}"
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": user_prompt}, {"role": "system", "content": sys_promt}],
@@ -54,18 +54,23 @@ def get_claim(model: Any, user_prompt: str) -> str:
     return generated_claim["claim"]
 
 def evaluate_model(model: Any, input_data: Any):
-    scores = []
-    responses = []
+    inf_results: Dict[List, List, List] = {
+                                            'scores' : ["METEOR(Nikhil/Llama-3.3-70B-Few-shot-prompt)"],
+                                            'responses' : ["Generated Claims"],
+                                            'labels' : ["Ground Truth"] 
+                                        }
     for index, item in tqdm(input_data.iterrows(), total=len(input_data)):
         response = get_claim(model, item['post'])
         response_tokens = word_tokenize(response)
         label_tokens = word_tokenize(item['normalized claim'])
-        scores.append(meteor_score([response_tokens], label_tokens))
-        responses.append(response)
-    with open("./data/generated_claims_dev.jsonl", "w", encoding="utf-8") as f:
-        json.dump(responses,f, ensure_ascii=False)
+        inf_results['scores'].append(meteor_score([response_tokens], label_tokens))
+        inf_results['responses'].append(response)
+        inf_results['labels'].append(item['normalized claim'])
         
-    return np.mean(scores)
+    with open("./data/inference_results.csv", "w", encoding="utf-8") as f:
+        pd.DataFrame(inf_results).to_csv(f, index=False)
+       
+    return np.mean(inf_results['scores'][1:])
 
 def main():
     
@@ -74,9 +79,9 @@ def main():
         
     file_path = "./data/dev.csv"
     DEV_DATA = pd.read_csv(file_path)
-    model = "Nikhil_Kadapala/Llama-3.3-70B-Instruct-Reference-Few-shot-Finetuned-0d7d6831"
+    model = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
     
-    METEROR_SCORE = evaluate_model(model, DEV_DATA[0:10])
+    METEROR_SCORE = evaluate_model(model, DEV_DATA[0:200])
     
     print(f"Average METEOR Score: {METEROR_SCORE}")
     
