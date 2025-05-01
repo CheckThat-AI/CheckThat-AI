@@ -72,7 +72,7 @@ This will run the code using OpenAI API to extract normalized claims using GPT-4
 
 Once the program starts running, you will see the output that looks something like below:
 
-```json
+```
 Extracting claims and evaluating with METEOR: 0%|                                         | 0/1 [00:00<?, ?it/s]
 
 Initial Claim: Trophy hunting is horrific.
