@@ -1,4 +1,4 @@
-from claim_normalizer.evaluate import start_evaluation
+from utils.evaluate import start_evaluation
 import pandas as pd
 import argparse
 import os

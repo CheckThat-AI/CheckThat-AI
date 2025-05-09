@@ -9,15 +9,19 @@ This is a text generation task in which systems have to generate the normlized c
 clef-2025-checkthat-lab-task2
 ├── src
 │   ├── claim_norm.py               # Main entry point
-│   ├── claim_normalizer            # Package containing claim normalization logic
+│   └── utils                       # Package containing helper functions for claim normalization logic
 │       ├── __init__.py             # Package initialization
 │       ├── evaluate.py             # Logic for evaluating the generated claims
 │       ├── self_refine.py          # Logic for the self-refine stage
-│       └── get_model_response.py   # Logic to query the model using the API
+│       ├── get_model_response.py   # Logic to query the model using the API
+│       ├── gpt.py                  # helper function to get the response from gpt-4.1-nano model using OpenAI API
+│       ├── llama.py                # helper function to get the response from llama-3.3-70B model using together.ai API
+│       ├── gemini.py               # helper function to get the response from gemini-2.0-flash model using gemini API
+│       └── grok.py                 # helper function to get the response from xAI's grok3 model using OpenAI API
 ├── data
 │   └── dev.csv                     # Development dataset for testing
 ├── requirements.txt                # Project dependencies
-├── README.md                       # Project documentation
+└── README.md                       # Project documentation
 ```
 
 ## Setup Instructions
@@ -38,20 +42,18 @@ clef-2025-checkthat-lab-task2
    ```bash
    pip install -r requirements.txt  
    ```
-   Use `uv pip install -r requirements.txt` for faster installation if you have uvicorn already installed. If not, run `pip install uvicorn[all]` and `pip install uv` first.
+   Use `uv pip install -r requirements.txt` for faster installation if you already have uv installed. 
+   
+   If not, run `pip install uv` first.
 
 4. **Set up environment variables:**
 Set the API keys for the model of your choice. This code works with the APIs of OpenAI, Gemini, Grok, and Together.ai
 
       ***Linux/macOS***
       ```bash 
-      export API_KEY=xxxxxxxx
+      export API_KEY="xxxxxxxx"
       ```
       ***Windows*** 
-      ```bash
-      setx API_KEY "xxxxxxxxx"
-      ```
-      ***Alternately use this in your virtual environment on both Windows and Linux***
       ```bash
       $env:API_KEY="xxxxxxxxx"
       ```
@@ -99,7 +101,7 @@ Extracting claims and evaluating with METEOR: 100%|█████████�
 
 Average METEOR Score: {'Llama_Zero-Shot': np.float64(0.02293577981651376)}
 ```
-***Go to src/claim_normalizer/self_refine.py to comment the print statements to make the code run faster when evaluating a large dataset***
+***Go to src/utils/self_refine.py to comment the print statements to make the code run faster when evaluating a large dataset***
 
 ## Help
 Run the below command to list the accepted model names and prompt styles.
