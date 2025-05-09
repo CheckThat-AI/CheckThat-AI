@@ -30,6 +30,10 @@ def process_item(args: Tuple[str, str, pd.Series, int]) -> Tuple[float, str, str
     Returns score, response, label, model and prompt_style as a tuple
     """
     model, prompt_style, item, self_refine_iters = args
+    if item['post'] == "":
+        return (0.0, "", "", model, prompt_style)
+    elif np.isnan(item['normalized claim']):
+        return (0.0, "", "", model, prompt_style)
     response = self_refine([model], item['post'], [prompt_style], self_refine_iters)
     response_tokens = word_tokenize(response)
     label_tokens = word_tokenize(item['normalized claim'])
@@ -95,6 +99,14 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
         }
         
         for index, item in tqdm(input_data.iterrows(), total=len(input_data), desc="Extracting claims and evaluating with METEOR"):
+            if item['post'] == "" or (isinstance(item['normalized claim'], float) and np.isnan(item['normalized claim'])):
+                print(f"Skipping item: {item['post']} and {item['normalized claim']}")
+                results_by_combination[combo_key]['scores'].append(0.0)
+                results_by_combination[combo_key]['responses'].append("")
+                results_by_combination[combo_key]['labels'].append("")
+                results_by_combination[combo_key]['model'].append(model)
+                results_by_combination[combo_key]['prompt_style'].append(prompt_style)
+                continue
             response = self_refine(models, item['post'], prompt_styles, self_refine_iters)
             response_tokens = word_tokenize(response)
             label_tokens = word_tokenize(item['normalized claim'])
