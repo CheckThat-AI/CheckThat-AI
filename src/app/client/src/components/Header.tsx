@@ -1,0 +1,29 @@
+import React from 'react';
+import { MessageSquareDashed } from 'lucide-react';
+import { useAppContext } from '@/contexts/AppContext';
+import { Switch } from '@/components/ui/switch';
+
+export default function Header() {
+  const { mode, toggleMode } = useAppContext();
+
+  return (
+    <header className="bg-white shadow-sm">
+      <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <MessageSquareDashed className="h-6 w-6 text-primary" />
+          <h1 className="text-xl font-semibold">Claim Normalization</h1>
+        </div>
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium">
+            {mode === 'chat' ? 'Chat Mode' : 'Evaluation Mode'}
+          </span>
+          <Switch 
+            checked={mode === 'evaluation'}
+            onCheckedChange={toggleMode}
+            title="Toggle between Chat and Evaluation modes"
+          />
+        </div>
+      </div>
+    </header>
+  );
+}
