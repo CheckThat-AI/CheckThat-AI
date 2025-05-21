@@ -15,15 +15,25 @@ sys.path.append(str(project_root))
 from src.utils.evaluate import start_evaluation
 
 app = FastAPI(
-    title="CheckThat Lab Task 2 API",
-    description="API for the CheckThat Lab Task 2 project",
+    title="Claim Extraction and Normaization",
+    description="API for the CLEF 2025 CheckThat Lab Task 2",
     version="1.0.0"
 )
+
+try:
+    ENV_TYPE = os.getenv("ENV_TYPE")
+except Exception as e:
+    print(f"Error getting ENV_TYPE: {e}")
+    
+if ENV_TYPE == "dev":
+    ORIGINS = ["http://localhost:5173"]
+else:
+    ORIGINS = ["https://nikhil-kadapala.github.io"]
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite's default development server port
+    allow_origins=ORIGINS,  # Vite's default development server port
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
