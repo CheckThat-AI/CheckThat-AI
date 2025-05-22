@@ -13,7 +13,8 @@ import {
   FileSpreadsheetIcon,
   KeyIcon,
   EyeIcon,
-  EyeOffIcon
+  EyeOffIcon,
+  InfoIcon
 } from 'lucide-react';
 import {
   Tooltip,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ModelOption } from '@shared/types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Function to get the appropriate icon based on file extension
 const getFileIcon = (fileName: string) => {
@@ -56,7 +58,7 @@ export default function ChatInterface() {
     handleFileChange 
   } = useAppContext();
 
-  const [selectedModel, setSelectedModel] = useState<ModelOption>('claude-3-7-sonnet-latest');
+  const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre');
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const { toast } = useToast();
@@ -64,6 +66,7 @@ export default function ChatInterface() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const modelOptions: { value: ModelOption; label: string }[] = [
+    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre', label: 'Llama 3.3 70B' },
     { value: 'claude-3-7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
     { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
     { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },
@@ -71,7 +74,6 @@ export default function ChatInterface() {
     { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro' },
     { value: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash' },
     { value: 'grok-3-latest', label: 'Grok 3 Beta' },
-    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre', label: 'Llama 3.3 70B' },
   ];
 
   // Auto-scroll to bottom when messages change
@@ -209,7 +211,7 @@ export default function ChatInterface() {
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedModel && (
+                {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
                   <div className="flex items-center space-x-2">
                     <div className="relative">
                       <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
@@ -245,6 +247,25 @@ export default function ChatInterface() {
               </div>
             </div>
           </form>
+
+          {/* API Key Policy Note */}
+          <AnimatePresence>
+            {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+                className="mt-3 flex items-start space-x-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg"
+              >
+                <InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                <p>
+                  Llama 3.3 70B is our free default model. If you wish to use other models, you need to enter your API Key. 
+                  We do not store your API Keys or share them with anyone. Your API keys are automatically purged after every request.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </CardContent>
       </Card>
     </div>
