@@ -13,6 +13,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.utils.evaluate import start_evaluation
+from src.utils.get_model_response import get_model_response
 
 app = FastAPI(
     title="Claim Extraction and Normaization",
@@ -48,7 +49,7 @@ class ErrorResponse(BaseModel):
     detail: str
 
 class ClaimNormalizationRequest(BaseModel):
-    model: str = "Llama"
+    model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre"
     prompt_style: str = "Zero-shot"
     self_refine_iterations: int = 0
     custom_prompt: Optional[str] = None
@@ -59,6 +60,17 @@ class ClaimNormalizationResponse(BaseModel):
     prompt_style: str
     self_refine_iterations: int
     custom_prompt: Optional[str] = None
+
+class SingleClaimRequest(BaseModel):
+    claim: str
+    model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre"
+    prompt_style: str = "Zero-shot"
+    api_key: Optional[str] = None
+
+class SingleClaimResponse(BaseModel):
+    normalizedClaim: str
+    model: str
+    prompt_style: str
 
 @app.get("/", response_model=HealthCheck)
 async def root():
@@ -73,6 +85,47 @@ async def health_check():
     Health check endpoint
     """
     return HealthCheck(status="healthy", version="1.0.0")
+
+@app.post("/normalize", response_model=SingleClaimResponse)
+async def normalize_single_claim(request: SingleClaimRequest):
+    """
+    Endpoint to normalize a single claim using the specified model and prompt style
+    """
+    try:
+        # Validate model
+        valid_models = [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre",
+            "claude-3-7-sonnet-latest",
+            "gpt-4o-2024-11-20",
+            "gpt-4.1-2025-04-14",
+            "gpt-4.1-nano-2025-04-14",
+            "gemini-2.5-pro-preview-05-06",
+            "gemini-2.5-flash-preview-04-17",
+            "grok-3-latest"
+        ]
+        
+        if request.model not in valid_models:
+            raise HTTPException(status_code=400, detail=f"Invalid model. Must be one of: {', '.join(valid_models)}")
+        
+        # Set API key if provided
+        if request.api_key:
+            os.environ[f"{request.model.upper()}_API_KEY"] = request.api_key
+        
+        # Get normalized claim
+        normalized_claim = get_model_response(
+            model=request.model,
+            prompt_style=request.prompt_style,
+            claim=request.claim
+        )
+        
+        return SingleClaimResponse(
+            normalizedClaim=normalized_claim,
+            model=request.model,
+            prompt_style=request.prompt_style
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/normalize-claims", response_model=ClaimNormalizationResponse)
 async def normalize_claims(
@@ -90,13 +143,22 @@ async def normalize_claims(
         df = pd.read_csv(file.file)
         
         # Get parameters from request or use defaults
-        model = request.model if request else "Llama"
+        model = request.model if request else "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre"
         prompt_style = request.prompt_style if request else "Zero-shot"
         self_refine_iterations = request.self_refine_iterations if request else 0
         custom_prompt = request.custom_prompt if request else None
         
         # Validate model and prompt style
-        valid_models = ["Llama", "OpenAI", "Gemini", "Grok"]
+        valid_models = [
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre",
+            "claude-3-7-sonnet-latest",
+            "gpt-4o-2024-11-20",
+            "gpt-4.1-2025-04-14",
+            "gpt-4.1-nano-2025-04-14",
+            "gemini-2.5-pro-preview-05-06",
+            "gemini-2.5-flash-preview-04-17",
+            "grok-3-latest"
+        ]
         valid_prompts = ["Zero-shot", "Few-shot", "Zero-shot-CoT", "Few-shot-CoT"]
         
         if model not in valid_models:

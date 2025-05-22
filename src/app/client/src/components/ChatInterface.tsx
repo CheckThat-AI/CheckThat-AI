@@ -14,7 +14,8 @@ import {
   KeyIcon,
   EyeIcon,
   EyeOffIcon,
-  InfoIcon
+  InfoIcon,
+  ArrowUpIcon
 } from 'lucide-react';
 import {
   Tooltip,
@@ -114,15 +115,17 @@ export default function ChatInterface() {
   return (
     <div className="flex flex-col h-full">
       {/* Chat History */}
-      <div className="flex-grow mb-4 overflow-auto bg-white rounded-lg shadow-sm p-4 max-h-[calc(100vh-240px)]" ref={messageContainerRef}>
+      <div className="flex-grow mb-4 overflow-auto justify-items-center bg-gray-700 border-0 rounded-lg shadow-gray-700 p-4 max-w-3xl w-full mx-auto max-h-[calc(100vh-240px)]" ref={messageContainerRef}>
         <div className="flex flex-col space-y-4">
           {messages.map((message) => (
             <div 
               key={message.id}
-              className={`message-bubble max-w-[80%] p-3 rounded-2xl mb-1 relative ${
+              className={`message-bubble p-3 rounded-2xl mb-1 relative ${
                 message.sender === 'user' 
-                  ? 'bg-primary text-white rounded-tr-sm self-end' 
-                  : 'bg-slate-100 text-slate-800 rounded-tl-sm self-start'
+                  ? 'max-w-[80%] bg-primary text-white rounded-tr-sm self-end' 
+                  : message.sender === 'system'
+                    ? 'w-full bg-gray-700 text-slate-200 rounded-tl-sm text-lg text-justify'
+                    : 'max-w-[80%] bg-slate-100 text-slate-800 rounded-tl-sm self-start'
               }`}
             >
               <div 
@@ -145,127 +148,106 @@ export default function ChatInterface() {
       </div>
       
       {/* Chat Input */}
-      <Card>
-        <CardContent className="p-4">
+      <Card className="bg-transparent border-0 shadow-none max-w-3xl w-full mx-auto">
+        <CardContent className="p-4 bg-gray-700 rounded-lg">
           <form onSubmit={handleSubmit} className="flex flex-col space-y-3">
-            <div className="flex items-center">
+            <div className="flex flex-col border border-gray-800 rounded-lg p-2 gap-2 bg-gradient-to-b from-gray-600 to-gray-700">
               <Textarea
                 id="message-input"
-                className="flex-grow resize-none border border-slate-300 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="Type your claim here..."
+                className="flex-grow text-white resize-none border-0 focus:ring-0 focus:outline-none bg-transparent min-h-[40px] focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-slate-200"
+                placeholder="Type or paste your input text here..."
                 rows={2}
                 value={currentMessage}
                 onChange={(e) => setCurrentMessage(e.target.value)}
               />
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center justify-between pt-2">
                 <div className="flex items-center space-x-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
+                  <Select
+                    value={selectedModel}
+                    onValueChange={(value) => setSelectedModel(value as ModelOption)}
+                  >
+                    <SelectTrigger className="w-[200px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                      <SelectValue placeholder="Select model" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                      {modelOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                    <div className="flex items-center space-x-2">
+                      <div className="relative">
+                        <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          type={showApiKey ? "text" : "password"}
+                          placeholder="Enter your API Key here"
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          className="pl-9 pr-9 w-[250px] bg-gray-700 text-white border-slate-600 placeholder:text-slate-400 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                        />
+                        <button
                           type="button"
-                          variant="outline"
-                          className="flex items-center text-slate-600 hover:text-primary-600 bg-slate-100 hover:bg-slate-200"
-                          onClick={handleFileUploadClick}
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
                         >
-                          <PaperclipIcon className="h-4 w-4 mr-1" />
-                          <span className="text-sm">Upload</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Accepted formats: csv, json, jsonl, txt</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                          {showApiKey ? (
+                            <EyeOffIcon className="h-4 w-4" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
                   {selectedFile && (
                     <div className="text-sm text-slate-500 flex items-center">
                       {getFileIcon(selectedFile.name)}
                       <span>{selectedFile.name}</span>
                     </div>
                   )}
+                  <Button
+                    type="submit"
+                    className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                    disabled={!currentMessage.trim() && !selectedFile}
+                  >
+                    <ArrowUpIcon className="h-4 w-4" />
+                  </Button>
                 </div>
-                <input
-                  type="file"
-                  id="file-upload"
-                  ref={fileInputRef}
-                  className="hidden"
-                  accept=".csv,.json,.jsonl,.txt,text/csv,application/json,application/x-jsonlines,text/plain"
-                  onChange={handleFileInputChange}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Select
-                  value={selectedModel}
-                  onValueChange={(value) => setSelectedModel(value as ModelOption)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {modelOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
-                  <div className="flex items-center space-x-2">
-                    <div className="relative">
-                      <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
-                      <Input
-                        type={showApiKey ? "text" : "password"}
-                        placeholder="Enter your API Key here"
-                        value={apiKey}
-                        onChange={(e) => setApiKey(e.target.value)}
-                        className="pl-9 pr-9 w-[250px]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                      >
-                        {showApiKey ? (
-                          <EyeOffIcon className="h-4 w-4" />
-                        ) : (
-                          <EyeIcon className="h-4 w-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-white"
-                  disabled={!currentMessage.trim() && !selectedFile}
-                >
-                  <span>Send</span>
-                  <SendIcon className="h-4 w-4 ml-1" />
-                </Button>
               </div>
             </div>
-          </form>
+            <input
+              type="file"
+              id="file-upload"
+              ref={fileInputRef}
+              className="hidden"
+              accept=".csv,.json,.jsonl,.txt,text/csv,application/json,application/x-jsonlines,text/plain"
+              onChange={handleFileInputChange}
+            />
 
-          {/* API Key Policy Note */}
-          <AnimatePresence>
-            {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
-                className="mt-3 flex items-start space-x-2 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg"
-              >
-                <InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <p>
-                  Llama 3.3 70B is our free default model. If you wish to use other models, you need to enter your API Key. 
-                  We do not store your API Keys or share them with anyone. Your API keys are automatically purged after every request.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
+            {/* API Key Policy Note */}
+            <AnimatePresence>
+              {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="mt-3 flex items-start space-x-2 text-sm text-slate-200 bg-gray-800 p-3 rounded-lg border border-slate-700"
+                >
+                  <InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-400" />
+                  <p>
+                    Llama 3.3 70B is our free default model. If you wish to use other models, you need to enter your API Key. 
+                    We do not store your API Keys or share them with anyone. Your API keys are automatically purged after every request.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </form>
         </CardContent>
       </Card>
     </div>

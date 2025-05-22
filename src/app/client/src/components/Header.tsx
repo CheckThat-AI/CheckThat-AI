@@ -7,14 +7,14 @@ export default function Header() {
   const { mode, toggleMode } = useAppContext();
 
   return (
-    <header className="bg-white shadow-sm">
+    <header className="bg-gray-800 shadow-sm">
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <MessageSquareDashed className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-semibold">Claim Normalization</h1>
+          <MessageSquareDashed className="h-6 w-6 text-slate-200" />
+          <h1 className="text-xl font-semibold text-slate-200">Claim Normalization</h1>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium text-slate-200">
             {mode === 'chat' ? 'Chat Mode' : 'Evaluation Mode'}
           </span>
           <Switch 

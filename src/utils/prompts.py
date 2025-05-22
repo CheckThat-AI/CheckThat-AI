@@ -60,8 +60,6 @@ Let's think step by step.
 **Normalized claim:**  Pakistani government appoints former army general to head medical regulatory body.
 </assistant_response>
 ---
-
-<user_query id="example-2">
 **Identify the decontextualized, stand-alone, and verifiable central claim in the given post:** A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed A priceless clip of 1970 of Bruce Lee playing Table Tennis with his Nan-chak !! His focus on speed None
 
 Let's think step by step.

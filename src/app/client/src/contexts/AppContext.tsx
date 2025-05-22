@@ -56,7 +56,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
-      content: "Hello! I'm your claim normalization assistant. You can type your claim or upload an image containing the claim you'd like to analyze.",
+      content: "Hello! I'm your claim normalization assistant. You can provide your source text to analyze.",
       sender: 'system',
       timestamp: new Date()
     }
@@ -155,7 +155,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setMessages([
       {
         id: generateId(),
-        content: "Hello! I'm your claim normalization assistant. You can type your claim or upload an image containing the claim you'd like to analyze.",
+        content: "Hello! I'm your claim normalization assistant. You can provide me your source text to analyze.",
         sender: 'system',
         timestamp: new Date()
       }

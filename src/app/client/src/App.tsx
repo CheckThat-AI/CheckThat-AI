@@ -17,10 +17,10 @@ function AppLayout() {
   const { mode } = useAppContext();
   
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-gray-700">
       <Header />
       
-      <main className="flex-grow container mx-auto px-4 py-6">
+      <main className="flex-grow flex justify-center items-center">
         {mode === 'chat' ? <ChatInterface /> : <EvaluationInterface />}
       </main>
       
