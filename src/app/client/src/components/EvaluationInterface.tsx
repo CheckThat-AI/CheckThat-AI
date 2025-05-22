@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,14 @@ import { ModelOption, PromptStyleOption } from '@shared/types';
 import { Play } from 'lucide-react';
 import EvaluationResultsComponent from './EvaluationResults';
 import { motion } from 'framer-motion';
+import { defaultPrompts } from '@shared/prompts';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function EvaluationInterface() {
   const {
@@ -21,6 +29,8 @@ export default function EvaluationInterface() {
   } = useAppContext();
   
   const resultsRef = useRef<HTMLDivElement>(null);
+  const [selectedPrompt, setSelectedPrompt] = useState<PromptStyleOption | null>(null);
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   
   const modelOptions = [
     { value: 'Llama', label: 'Llama' },
@@ -60,6 +70,11 @@ export default function EvaluationInterface() {
       default:
         return 'Unknown status';
     }
+  };
+
+  const handlePromptPreview = (promptStyle: PromptStyleOption) => {
+    setSelectedPrompt(promptStyle);
+    setIsPromptModalOpen(true);
   };
 
   return (
@@ -136,10 +151,7 @@ export default function EvaluationInterface() {
                       variant="ghost"
                       size="sm"
                       className="text-slate-500 hover:text-primary"
-                      onClick={() => {
-                        // TODO: Implement preview functionality
-                        alert(`Preview of ${option.label} prompt`);
-                      }}
+                      onClick={() => handlePromptPreview(option.value as PromptStyleOption)}
                     >
                       View
                     </Button>
@@ -209,6 +221,25 @@ export default function EvaluationInterface() {
           )}
         </CardContent>
       </Card>
+
+      {/* Prompt Preview Modal */}
+      <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedPrompt && defaultPrompts[selectedPrompt].title}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedPrompt && defaultPrompts[selectedPrompt].description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <pre className="bg-slate-50 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-sm">
+              {selectedPrompt && defaultPrompts[selectedPrompt].template}
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
