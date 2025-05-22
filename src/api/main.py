@@ -51,12 +51,14 @@ class ClaimNormalizationRequest(BaseModel):
     model: str = "Llama"
     prompt_style: str = "Zero-shot"
     self_refine_iterations: int = 0
+    custom_prompt: Optional[str] = None
 
 class ClaimNormalizationResponse(BaseModel):
     meteor_score: float
     model: str
     prompt_style: str
     self_refine_iterations: int
+    custom_prompt: Optional[str] = None
 
 @app.get("/", response_model=HealthCheck)
 async def root():
@@ -91,6 +93,7 @@ async def normalize_claims(
         model = request.model if request else "Llama"
         prompt_style = request.prompt_style if request else "Zero-shot"
         self_refine_iterations = request.self_refine_iterations if request else 0
+        custom_prompt = request.custom_prompt if request else None
         
         # Validate model and prompt style
         valid_models = ["Llama", "OpenAI", "Gemini", "Grok"]
@@ -98,17 +101,18 @@ async def normalize_claims(
         
         if model not in valid_models:
             raise HTTPException(status_code=400, detail=f"Invalid model. Must be one of: {', '.join(valid_models)}")
-        if prompt_style not in valid_prompts:
-            raise HTTPException(status_code=400, detail=f"Invalid prompt style. Must be one of: {', '.join(valid_prompts)}")
+        if prompt_style not in valid_prompts and not custom_prompt:
+            raise HTTPException(status_code=400, detail=f"Invalid prompt style. Must be one of: {', '.join(valid_prompts)} or provide a custom prompt")
         
         # Run the evaluation
-        meteor_score = start_evaluation(model, prompt_style, df, self_refine_iterations)
+        meteor_score = start_evaluation(model, prompt_style, df, self_refine_iterations, custom_prompt)
         
         return ClaimNormalizationResponse(
             meteor_score=meteor_score,
             model=model,
             prompt_style=prompt_style,
-            self_refine_iterations=self_refine_iterations
+            self_refine_iterations=self_refine_iterations,
+            custom_prompt=custom_prompt
         )
         
     except Exception as e:

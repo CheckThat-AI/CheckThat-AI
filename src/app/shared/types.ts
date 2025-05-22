@@ -20,6 +20,7 @@ export interface EvaluationData {
   file: File | null;
   selectedModels: ModelOption[];
   selectedPromptStyles: PromptStyleOption[];
+  customPrompt?: string;
 }
 
 // API response types

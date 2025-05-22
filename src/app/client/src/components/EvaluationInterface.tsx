@@ -7,6 +7,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { ModelOption, PromptStyleOption } from '@shared/types';
 import { Play } from 'lucide-react';
 import EvaluationResultsComponent from './EvaluationResults';
+import { motion } from 'framer-motion';
 
 export default function EvaluationInterface() {
   const {
@@ -63,6 +64,18 @@ export default function EvaluationInterface() {
 
   return (
     <div>
+      {/* Animated Evaluation Mode Text */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+      >
+        <p className="text-blue-800 text-center">
+          This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
+        </p>
+      </motion.div>
+
       <Card className="bg-white">
         <CardContent className="p-6">
           <h2 className="text-xl font-semibold mb-6">Claim Evaluation</h2>
@@ -96,27 +109,56 @@ export default function EvaluationInterface() {
           {/* Prompt Style Selection Section */}
           <div className="mb-8">
             <h3 className="text-lg font-medium text-slate-800 mb-3">Prompt Styles</h3>
-            <p className="text-sm text-slate-600 mb-4">
-              Choose one or more prompt styles for the normalization process:
-            </p>
             
-            <ToggleGroup 
-              type="multiple" 
-              value={evaluationData.selectedPromptStyles}
-              onValueChange={(value) => updateEvaluationData({ selectedPromptStyles: value as PromptStyleOption[] })}
-              className="justify-start"
-            >
-              {promptStyleOptions.map((option) => (
-                <ToggleGroupItem 
-                  key={option.value} 
-                  value={option.value}
-                  variant="outline"
-                  className="border-2 px-6 py-3 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary font-medium"
-                >
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
+            {/* Default Prompts Section */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-slate-700 mb-2">Default Prompts</h4>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {promptStyleOptions.map((option) => (
+                  <div key={option.value} className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      className={`border-2 px-4 py-2 ${
+                        evaluationData.selectedPromptStyles.includes(option.value as PromptStyleOption)
+                          ? 'bg-primary/10 border-primary text-primary'
+                          : 'border-slate-200'
+                      }`}
+                      onClick={() => {
+                        const newStyles = evaluationData.selectedPromptStyles.includes(option.value as PromptStyleOption)
+                          ? evaluationData.selectedPromptStyles.filter(style => style !== option.value)
+                          : [...evaluationData.selectedPromptStyles, option.value as PromptStyleOption];
+                        updateEvaluationData({ selectedPromptStyles: newStyles });
+                      }}
+                    >
+                      {option.label}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-500 hover:text-primary"
+                      onClick={() => {
+                        // TODO: Implement preview functionality
+                        alert(`Preview of ${option.label} prompt`);
+                      }}
+                    >
+                      View
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Prompt Section */}
+            <div>
+              <h4 className="text-md font-medium text-slate-700 mb-2">Custom Prompt</h4>
+              <textarea
+                className="w-full p-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                rows={4}
+                placeholder="Enter your custom prompt here..."
+                value={evaluationData.customPrompt || ''}
+                onChange={(e) => updateEvaluationData({ customPrompt: e.target.value })}
+              />
+            </div>
           </div>
           
           {/* Progress Tracking */}
