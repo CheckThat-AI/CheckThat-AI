@@ -4,8 +4,9 @@ nltk
 tqdm
 pydantic
 together
-google-genai
 openai
+anthropic
+google-genai
 fastapi[standard]
 uvicorn>=0.24.0
 python-multipart>=0.0.6
