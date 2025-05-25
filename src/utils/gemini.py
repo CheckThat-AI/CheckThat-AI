@@ -3,7 +3,7 @@ from google import genai
 from google.genai import types
 from typing import Any
 
-def get_gemini_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
+def get_gemini_response(model: str, sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
     
     ERROR_MESSAGE = "Exception in Gemini's response: "
     generated_claim: str = "None"
@@ -13,7 +13,7 @@ def get_gemini_response(sys_prompt: str, user_prompt: str, response_format: Any,
         client = genai.Client(api_key=GEMINI_API_KEY)
         
         response = client.models.generate_content(
-                        model="gemini-2.0-flash",
+                        model=model,
                         contents=[types.Part.from_text(text=user_prompt)],
                         config=types.GenerateContentConfig(
                             system_instruction=sys_prompt,

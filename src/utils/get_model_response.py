@@ -10,6 +10,7 @@ from .gpt import get_gpt_response
 from .grok import get_grok_response
 from .llama import get_llama_response
 from .gemini import get_gemini_response
+from .claude import get_claude_response
 
 class NormalizedClaim(BaseModel):
     claim: str = Field(description="A normalized claim extracted from the noisy input text.")
@@ -46,19 +47,20 @@ def get_model_response(model:str, user_prompt:str, sys_prompt:str, gen_type:str)
      
     if model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14", "grok-3-latest"]:
         
-        generated_claim = get_gpt_response(sys_prompt, user_prompt, output_type, gen_type)
+        generated_claim = get_gpt_response(model, sys_prompt, user_prompt, output_type, gen_type)
 
     elif model == "grok-3-latest":
         
-        generated_claim = get_grok_response(sys_prompt, user_prompt, output_type, gen_type)
+        generated_claim = get_grok_response(model, sys_prompt, user_prompt, output_type, gen_type)
              
     elif model == "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre":
         
-        generated_claim = get_llama_response(sys_prompt, user_prompt, output_type, gen_type)
+        generated_claim = get_llama_response(model, sys_prompt, user_prompt, output_type, gen_type)
         
     elif model in ["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"]:
         
-        generated_claim = get_gemini_response(sys_prompt, user_prompt, output_type, gen_type)
+        generated_claim = get_gemini_response(model, sys_prompt, user_prompt, output_type, gen_type)
+    else:
+        generated_claim = get_claude_response(model, sys_prompt, user_prompt, output_type, gen_type)
             
-    #print(f"Model: {model}, Response: {generated_claim}")
     return generated_claim

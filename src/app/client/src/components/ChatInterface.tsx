@@ -49,7 +49,7 @@ export default function ChatInterface() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const modelOptions: { value: ModelOption; label: string }[] = [
-    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre', label: 'Llama 3.3 70B' },
+    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B' },
     { value: 'claude-3.7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
     { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
     { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },

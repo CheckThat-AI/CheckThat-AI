@@ -1,11 +1,20 @@
 modules = ["nodejs-20", "python-3.11"]
 
 [workflows]
-runButton = "Start App"
+runButton = "Run Project"
 
 [[workflows.workflow]]
 name = "Start App"
-mode = "parallel"
+mode = "sequential"
+author = 41646817
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd src/app && npm run dev"
+
+[[workflows.workflow]]
+name = "Env Setup"
+mode = "sequential"
 author = 41646817
 
 [[workflows.workflow.tasks]]
@@ -18,15 +27,36 @@ args = "source .venv/bin/activate"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "uv pip install -r requirements.txt"
+args = "pip install -r requirements.txt && uv pip install -r requirements.txt"
+
+[[workflows.workflow]]
+name = "Start Server"
+mode = "sequential"
+author = 41646817
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd src/api && fastapi dev main.py"
 
+[[workflows.workflow]]
+name = "Run Project"
+mode = "sequential"
+author = 41646817
+
 [[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd src/app && npm run dev"
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Env Setup"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start App"
 
 [[ports]]
 localPort = 5173
