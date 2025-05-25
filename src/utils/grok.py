@@ -2,7 +2,7 @@ import os
 from openai import OpenAI
 from typing import Any
 
-def get_grok_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
+def get_grok_response(model:str, sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
 
     ERROR_MESSAGE = "Exception in Grok's response: "
     generated_claim: str = "None"
@@ -12,7 +12,7 @@ def get_grok_response(sys_prompt: str, user_prompt: str, response_format: Any, g
         client = OpenAI(api_key=GROK_API_KEY, base_url="https://api.x.ai/v1")
 
         response = client.beta.chat.completions.parse(
-                        model="grok-3-latest",
+                        model=model,
                         messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}],
                         response_format=response_format
                     )

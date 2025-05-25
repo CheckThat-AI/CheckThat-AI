@@ -3,7 +3,7 @@ import json
 from together import Together
 from typing import Any
 
-def get_llama_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
+def get_llama_response(model: str, sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
 
     ERROR_MESSAGE = "Exception in Llama's response: "
     
@@ -15,7 +15,7 @@ def get_llama_response(sys_prompt: str, user_prompt: str, response_format: Any, 
         
         response = client.chat.completions.create(
                         messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}],
-                        model="Nikhil_Kadapala/gemma-3-12b-it-claim-norm-20e2645a-c2e57cea",
+                        model=model,
                         response_format={
                             "type": "json_object",
                             "schema": response_format.model_json_schema(),
