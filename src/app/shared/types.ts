@@ -10,7 +10,7 @@ export interface Message {
 }
 
 // Model options
-export type ModelOption = 'grok-3-latest' | 'claude-3-7-sonnet-latest' | 'gpt-4o-2024-11-20' | 'gpt-4.1-2025-04-14' | 'gpt-4.1-nano-2025-04-14' | 'gemini-2.5-pro-preview-05-06' | 'gemini-2.5-flash-preview-04-17' | 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre';
+export type ModelOption = 'grok-3-latest' | 'claude-3.7-sonnet-latest' | 'gpt-4o-2024-11-20' | 'gpt-4.1-2025-04-14' | 'gpt-4.1-nano-2025-04-14' | 'gemini-2.5-pro-preview-05-06' | 'gemini-2.5-flash-preview-04-17' | 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre';
 
 // Prompt style options
 export type PromptStyleOption = 'Zero-shot' | 'Few-shot' | 'Zero-shot-CoT' | 'Few-shot-CoT';

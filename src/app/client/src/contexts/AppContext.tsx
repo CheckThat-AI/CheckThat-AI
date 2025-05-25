@@ -27,6 +27,10 @@ interface AppContextType {
   sendMessage: () => Promise<void>;
   handleFileChange: (file: File | null) => void;
   clearMessages: () => void;
+  selectedModel: ModelOption;
+  setSelectedModel: (model: ModelOption) => void;
+  apiKey: string;
+  setApiKey: (key: string) => void;
   
   // Evaluation mode
   evaluationData: EvaluationData;
@@ -64,6 +68,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentMessage, setCurrentMessage] = useState('');
+  const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre');
+  const [apiKey, setApiKey] = useState('');
   const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
   const [evaluationSubmitted, setEvaluationSubmitted] = useState(false);
   
@@ -79,8 +85,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const sendMessage = async () => {
-    if (!currentMessage.trim() && !selectedFile) return;
+    console.log('sendMessage called');
+    if (!currentMessage.trim() && !selectedFile) {
+      console.log('No message or file to send');
+      return;
+    }
     
+    console.log('Creating user message');
     // Add user message to chat
     const userMessage: Message = {
       id: generateId(),
@@ -90,52 +101,67 @@ export function AppProvider({ children }: { children: ReactNode }) {
       files: selectedFile ? [selectedFile] : undefined
     };
     
+    console.log('Adding user message to chat');
     setMessages(prev => [...prev, userMessage]);
     setCurrentMessage('');
     setIsLoading(true);
     
     try {
-      // Create form data for API request
-      const formData = new FormData();
-      if (currentMessage) {
-        formData.append('claim', currentMessage);
-      }
-      if (selectedFile) {
-        formData.append('file', selectedFile);
-      }
-      
+      console.log('Preparing request data:', {
+        user_query: currentMessage,
+        model: selectedModel,
+        api_key: apiKey ? '***' : undefined
+      });
+
+      const requestBody = {
+        user_query: currentMessage,
+        model: selectedModel,
+        api_key: apiKey
+      };
+
+      console.log('Sending request to /api/chat');
       // Call API to normalize claim
-      const response = await fetch('/api/normalize', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
       
+      console.log('Response received:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to normalize claim');
+        const errorData = await response.json().catch(() => null);
+        console.error('Error response:', errorData);
+        throw new Error(errorData?.detail || 'Failed to normalize claim');
       }
       
       const data: NormalizationResponse = await response.json();
+      console.log('Response data:', data);
       
       // Add system response
       const systemMessage: Message = {
         id: generateId(),
-        content: `I've normalized your claim:\n\n**Normalized Claim:** ${data.normalizedClaim}`,
+        content: `**Normalized Claim:** ${data.normalizedClaim}`,
         sender: 'system',
         timestamp: new Date()
       };
       
+      console.log('Adding system response to chat');
       setMessages(prev => [...prev, systemMessage]);
       
       // Clear file if any
       setSelectedFile(null);
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Error in sendMessage:', error);
       toast({
         title: "Error",
-        description: "Failed to normalize your claim. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to normalize your claim. Please try again.",
         variant: "destructive",
       });
     } finally {
+      console.log('Setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -344,6 +370,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       sendMessage,
       handleFileChange,
       clearMessages,
+      selectedModel,
+      setSelectedModel,
+      apiKey,
+      setApiKey,
       evaluationData,
       updateEvaluationData,
       submitEvaluation,

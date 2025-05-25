@@ -12,6 +12,7 @@ import Footer from '@/components/Footer';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import NotFound from '@/pages/not-found';
 import { useAppContext } from '@/contexts/AppContext';
+import './components/scrollbar-hide.css';
 
 function AppLayout() {
   const { mode } = useAppContext();
@@ -20,7 +21,7 @@ function AppLayout() {
     <div className="flex flex-col min-h-screen bg-gray-700">
       <Header />
       
-      <main className="flex-grow flex justify-center items-center">
+      <main className="flex-1 flex flex-col">
         {mode === 'chat' ? <ChatInterface /> : <EvaluationInterface />}
       </main>
       

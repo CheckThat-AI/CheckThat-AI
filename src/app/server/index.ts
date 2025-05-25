@@ -2,18 +2,23 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import cors from 'cors';
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+
+// Enable CORS for all routes
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Proxy API requests to FastAPI backend
 app.use('/api', createProxyMiddleware({
   target: 'http://localhost:8000',
   changeOrigin: true,
-  pathRewrite: {
-    '^/api': '', // Remove /api prefix when forwarding to FastAPI
-  },
+  pathRewrite: { '^/api': '' }, // Remove /api prefix when forwarding to FastAPI
 }));
 
 app.use((req, res, next) => {

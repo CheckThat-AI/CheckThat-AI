@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import './scrollbar-hide.css';
 
 // Function to get the appropriate icon based on file extension
 const getFileIcon = (fileName: string) => {
@@ -114,14 +115,14 @@ export default function EvaluationInterface() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-6 p-4 bg-gray-800 border-0 shadow-sm border-blue-200 rounded-lg mt-8"
+        className="mb-6 p-4 bg-gray-800 border-0 shadow-sm border-blue-200 rounded-xl mt-8"
       >
         <p className="text-slate-300 text-center">
           This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
         </p>
       </motion.div>
 
-      <Card className="mb-4 bg-gray-700 border-solid border-gray-700 shadow-lg flex flex-col max-w-6xl w-full mx-auto">
+      <Card className="mb-4 bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg flex flex-col max-w-6xl w-full mx-auto">
         <CardContent className="p-6 bg-gray-700 rounded-lg">
           <h2 className="text-xl text-white font-semibold mb-6">Claim Evaluation</h2>
           
@@ -208,7 +209,7 @@ export default function EvaluationInterface() {
             <div>
               <h4 className="text-md font-medium  text-slate-300 mb-2">Custom Prompt</h4>
               <textarea
-                className="w-full p-3 border bg-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="w-full p-3 border border-gray-800 bg-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                 rows={4}
                 placeholder="Enter your custom prompt here..."
                 value={evaluationData.customPrompt || ''}
@@ -323,7 +324,11 @@ export default function EvaluationInterface() {
           setShowSystemPrompt(false);
         }
       }}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-hidden flex flex-col bg-gray-800 text-slate-200">
+        <DialogContent 
+          className="max-w-3xl max-h-[80vh]  
+          flex-1 flex-col overflow-auto scrollbar-hide
+          bg-gray-800 
+          text-slate-200">
           <DialogHeader>
             <DialogTitle className="text-white">
               {showSystemPrompt ? 'System Prompt' : (selectedPrompt && defaultPrompts[selectedPrompt].title)}

@@ -1,7 +1,6 @@
 import os
 
-sys_prompt = """
-# Identity
+sys_prompt = """# Identity
 
 You are a helpful AI assistant and an expert in claim detection, extraction, and normalization.  
 
@@ -50,8 +49,7 @@ instruction = """Identify the decontextualized, stand-alone, and verifiable cent
 
 chain_of_thought_trigger = "Let's think step by step."
 
-few_shot_prompt = """
-# Here are some examples of how to identify a decontextualized, stand-alone, and verifiable central claim in a post:
+few_shot_prompt = """# Here are some examples of how to identify a decontextualized, stand-alone, and verifiable central claim in a post:
 <user_query id="example-1">
 **Identify the decontextualized, stand-alone, and verifiable central claim in the given post:** Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC Lieutenant Retired General Asif Mumtaz appointed as Chairman Pakistan Medical Commission PMC None.
 
@@ -95,7 +93,7 @@ Let's think step by step.
 </user_query>
 
 <assistant_response id="example-4">
-**Normalized claim:** St Austin University North Carolina says eating vaginal fluid makes you immune to cancer
+**Normalized claim:** St.Austin University North Carolina says eating vaginal fluid makes you immune to cancer
 </assistant_response>
 ---
 
@@ -123,9 +121,9 @@ Let's think step by step.
 <assistant_response id="example-1">
 1. **Identify the actor:** “Lieutenant Retired General Asif Mumtaz.”  
 2. **Find the action:** He is “appointed as Chairman.”  
-3. **Clarify the institution:** “Pakistan Medical Commission (PMC)” is Pakistan’s medical regulator.  
+3. **Clarify the institution:** “Pakistan Medical Commission (PMC)” is Pakistan's medical regulator.  
 4. **Infer the agent:** Such appointments are made by the Pakistani government.  
-5. **Condense & rephrase:** Government appoints ex‐army general to lead medical regulatory body.
+5. **Condense & rephrase:** Government appoints ex-army general to lead medical regulatory body.
 
 **Normalized claim:**  Pakistani government appoints former army general to head medical regulatory body.
 </assistant_response>
@@ -140,7 +138,7 @@ Let's think step by step.
 <assistant_response id="example-2">
 
 1. **Spot the subject & date:** “Bruce Lee” and “1970.”  
-2. **Extract the activity:** “playing Table Tennis with his Nan‑chak” (nunchucks).  
+2. **Extract the activity:** “playing Table Tennis with his Nan-chak” (nunchucks).  
 3. **Add clarifying detail:** Bruce Lee is now deceased (“late actor and martial artist”).  
 4. **Formulate succinctly:** “Late actor and martial artist Bruce Lee playing table tennis with a set of nunchucks.”
 
@@ -156,9 +154,9 @@ Let's think step by step.
 
 <assistant_response id="example-3">
 
-1. **Read the headline:** “Hydrate YOURSELF” and a list of times to drink water.  
+1. **Read the headline:** “Hydrate YOURSELF” and a list of times to drink water.  
 2. **List implied benefits:** activating organs, aiding digestion, lowering blood pressure, etc.  
-3. **Generalize across items:** All are timing‑based water‑drinking tips tied to health effects.  
+3. **Generalize across items:** All are timing-based water-drinking tips tied to health effects.  
 4. **Summarize:** Drinking water at specific times yields various health benefits.
 
 **Normalized claim:** Drinking water at specific times can have different health benefits
@@ -180,13 +178,13 @@ Let's think step by step.
 
 <assistant_response id="example-4">
 
-1. **Locate the source:** “Scientists at St. Austin University in North Carolina.”  
-2. **Extract central assertion:** “Eating vaginal fluids makes you immune to cancer (and other diseases).”  
-3. **Note study framing:** Cites “equivalent exchange” theory by Dr John D. Moore (2009).  
+1. **Locate the source:** "Scientists at St. Austin University in North Carolina."
+2. **Extract central assertion:** "Eating vaginal fluids makes you immune to cancer (and other diseases)."  
+3. **Note study framing:** Cites "equivalent exchange" theory by Dr John D. Moore (2009).  
 4. **Focus on the strongest, headline claim:** Immunity to cancer.  
-5. **Rephrase attributively:** “St Austin University North Carolina says eating vaginal fluid makes you immune to cancer.”
+5. **Rephrase attributively:** "St.Austin University North Carolina says eating vaginal fluid makes you immune to cancer."
 
-**Normalized claim:** St Austin University North Carolina says eating vaginal fluid makes you immune to cancer
+**Normalized claim:** St.Austin University North Carolina says eating vaginal fluid makes you immune to cancer
 </assistant_response>
 ---
 
@@ -212,7 +210,7 @@ Let's think step by step.
 
 feedback_prompt = """ You are provided with a generated response and a user prompt. 
 Your task is to provide detailed, constructive feedback on the generated response based on the criteria provided to ensure that the normalized claims are not only consistent with the original post, but are also self-contained and verifiable.
-Please score the response on the following criteria using a 0–10 scale, and provide a brief justification for each score:
+Please score the response on the following criteria using a 0-10 scale, and provide a brief justification for each score:
 1. **Verifiability:**
 2. **Likelihood of Being False:**
 3. **Public Interest:** 
