@@ -128,7 +128,7 @@ export default function ChatInterface() {
                             ))}
                           </SelectContent>
                         </Select>
-                        {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                        {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                           <div className="flex items-center space-x-2">
                             <div className="relative">
                               <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -166,7 +166,7 @@ export default function ChatInterface() {
                     </div>
                   </div>
                   <AnimatePresence>
-                    {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                    {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -267,7 +267,7 @@ export default function ChatInterface() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                      {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                         <div className="flex items-center space-x-2">
                           <div className="relative">
                             <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -305,7 +305,7 @@ export default function ChatInterface() {
                   </div>
                 </div>
                 <AnimatePresence>
-                  {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre' && (
+                  {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
