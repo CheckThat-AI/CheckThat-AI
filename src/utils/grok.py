@@ -1,7 +1,8 @@
 import os
 from openai import OpenAI
+from typing import Any
 
-def get_grok_response(sys_prompt: str, user_prompt: str, response_format: str, gen_type: str) -> str:
+def get_grok_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
 
     ERROR_MESSAGE = "Exception in Grok's response: "
     generated_claim: str = "None"

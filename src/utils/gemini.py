@@ -1,8 +1,9 @@
 import os
 from google import genai
 from google.genai import types
+from typing import Any
 
-def get_gemini_response(sys_prompt: str, user_prompt: str, response_format: str, gen_type: str) -> str:
+def get_gemini_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
     
     ERROR_MESSAGE = "Exception in Gemini's response: "
     generated_claim: str = "None"

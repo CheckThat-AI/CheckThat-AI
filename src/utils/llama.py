@@ -1,8 +1,9 @@
 import os
 import json
 from together import Together
+from typing import Any
 
-def get_llama_response(sys_prompt: str, user_prompt: str, response_format: str, gen_type: str) -> str:
+def get_llama_response(sys_prompt: str, user_prompt: str, response_format: Any, gen_type: str) -> str:
 
     ERROR_MESSAGE = "Exception in Llama's response: "
     
