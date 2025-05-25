@@ -1,11 +1,11 @@
 modules = ["nodejs-20", "python-3.11"]
 
 [workflows]
-runButton = "Start App"
+runButton = "Run Project"
 
 [[workflows.workflow]]
 name = "Start App"
-mode = "parallel"
+mode = "sequential"
 author = 41646817
 
 [[workflows.workflow.tasks]]
