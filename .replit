@@ -1,0 +1,33 @@
+modules = ["nodejs-20", "python-3.11"]
+
+[workflows]
+runButton = "Start App"
+
+[[workflows.workflow]]
+name = "Start App"
+mode = "parallel"
+author = 41646817
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uv venv .venv"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "source .venv/bin/activate"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "uv pip install -r requirements.txt"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd src/api && fastapi dev main.py"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd src/app && npm run dev"
+
+[[ports]]
+localPort = 5173
+externalPort = 80
