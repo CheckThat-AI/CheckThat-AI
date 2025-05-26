@@ -7,13 +7,16 @@ import pandas as pd
 import os
 import sys
 from pathlib import Path
+from fastapi.responses import StreamingResponse
 
 # Add the project root directory to the Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.utils.get_model_response import get_model_response
-from src.utils.prompts import sys_prompt, few_shot_CoT_prompt
+from src.utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_prompt
+from src.utils.prompt_eval import get_prompt_type
+from src.utils.chat import get_chatbot_response
 
 app = FastAPI(
     title="Claim Extraction and Normaization",
@@ -51,7 +54,7 @@ class ErrorResponse(BaseModel):
     detail: str
 
 class ClaimNormalizationRequest(BaseModel):
-    model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre"
+    model: str = "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
     prompt_style: str = "Zero-shot"
     self_refine_iterations: int = 0
     custom_prompt: Optional[str] = None
@@ -85,7 +88,7 @@ async def health_check():
     """
     return HealthCheck(status="healthy", version="1.0.0")
 
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 async def normalize_single_claim(request: SingleClaimRequest):
     """
     Endpoint to normalize a single claim from the user provided text
@@ -94,7 +97,7 @@ async def normalize_single_claim(request: SingleClaimRequest):
         print("Received request:", request.dict())
 
         valid_models = [
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre",
+            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
             "claude-3.7-sonnet-latest",
             "gpt-4o-2024-11-20",
             "gpt-4.1-2025-04-14",
@@ -126,16 +129,33 @@ async def normalize_single_claim(request: SingleClaimRequest):
             os.environ[f"{API_PROVIDER}_API_KEY"] = request.api_key
 
         print(f"Model: {request.model} \nUser Query: {request.user_query}")
+
+        prompt_type = get_prompt_type(request.user_query)
+        print(f"Prompt type: {prompt_type}")
+        if prompt_type == "claim_normalization":
+
+            def stream_response():
+                for chunk in get_model_response(
+                    model=request.model,
+                    user_prompt=request.user_query,
+                    sys_prompt="Few-shot-CoT",
+                    gen_type="init"
+                ):
+                    yield chunk
+
+            return StreamingResponse(stream_response(), media_type="text/plain")
         
-        normalized_claim = get_model_response(
-            model=request.model,
-            user_prompt=request.user_query,
-            sys_prompt="Few-shot-CoT",
-            gen_type="init"
-        )
-        print("Normalized claim:", normalized_claim)
-        return ChatResponse(normalizedClaim=normalized_claim)
-        
+        elif prompt_type == "general_query":
+            def stream_response():
+                for chunk in get_chatbot_response(
+                    model=request.model,
+                    user_prompt=request.user_query,
+                    sys_prompt=chat_prompt,
+                ):
+                    yield chunk
+
+            return StreamingResponse(stream_response(), media_type="text/plain")
+
     except Exception as e:
         print("Error in normalize_single_claim:", str(e))
         raise HTTPException(status_code=500, detail=str(e))

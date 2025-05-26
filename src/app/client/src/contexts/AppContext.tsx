@@ -16,10 +16,11 @@ import { useToast } from '@/hooks/use-toast';
 
 type AppMode = 'chat' | 'evaluation';
 
-interface AppContextType {
+export interface AppContextType {
   mode: AppMode;
   toggleMode: () => void;
   messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   isLoading: boolean;
   selectedFile: File | null;
   currentMessage: string;
@@ -68,7 +69,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [currentMessage, setCurrentMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre');
+  const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Free');
   const [apiKey, setApiKey] = useState('');
   const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
   const [evaluationSubmitted, setEvaluationSubmitted] = useState(false);
@@ -363,6 +364,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       mode,
       toggleMode,
       messages,
+      setMessages,
       isLoading,
       selectedFile,
       currentMessage,

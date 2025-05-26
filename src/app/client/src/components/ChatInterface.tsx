@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
+import type { Message } from '@shared/types';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -40,7 +41,8 @@ export default function ChatInterface() {
     selectedModel,
     setSelectedModel,
     apiKey,
-    setApiKey
+    setApiKey,
+    setMessages
   } = useAppContext();
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -70,8 +72,83 @@ export default function ChatInterface() {
     console.log('handleSubmit called');
     if (e) e.preventDefault();
     console.log('Calling sendMessage');
-    await sendMessage();
-    console.log('sendMessage completed');
+
+    // Add the user message to the chat immediately
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      sender: 'user',
+      content: currentMessage,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+
+    // Add a temporary assistant message for streaming
+    const tempMessageId = (Date.now() + 1).toString();
+    const tempMessage: Message = {
+      id: tempMessageId,
+      sender: 'assistant',
+      content: '',
+      isStreaming: true,
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, tempMessage]);
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_query: currentMessage,
+          model: selectedModel,
+          api_key: apiKey
+        }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader available');
+
+      let accumulatedContent = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = new TextDecoder().decode(value);
+        accumulatedContent += chunk;
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessageId
+            ? { ...msg, content: accumulatedContent }
+            : msg
+        ));
+      }
+      // After streaming is done, parse and clean up
+      try {
+        const parsed = JSON.parse(accumulatedContent);
+        const cleanText = parsed.claim || parsed.normalizedClaim || parsed.result || accumulatedContent;
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessageId
+            ? { ...msg, content: cleanText, isStreaming: false }
+            : msg
+        ));
+      } catch {
+        setMessages(prev => prev.map(msg =>
+          msg.id === tempMessageId
+            ? { ...msg, content: accumulatedContent, isStreaming: false }
+            : msg
+        ));
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => prev.map(msg =>
+        msg.id === tempMessageId
+          ? { ...msg, content: 'Error: Failed to get response', isStreaming: false }
+          : msg
+      ));
+    }
+    setCurrentMessage('');
     textareaRef.current?.focus();
   };
 
@@ -209,13 +286,21 @@ export default function ChatInterface() {
                     <div
                       className={`message-bubble p-3 rounded-2xl mb-1 relative 
                         max-w-[80%] 
-                        ${message.sender === 'user' ? 'bg-primary text-white rounded-tr-sm self-end' : 'bg-slate-100 text-slate-800 rounded-tl-sm self-start'}`}
+                        ${message.sender === 'user' 
+                          ? 'bg-primary text-white rounded-tr-sm self-end' 
+                          : 'bg-slate-100 text-slate-800 rounded-tl-sm self-start'}
+                        ${message.isStreaming ? 'animate-pulse' : ''}`}
                     >
                       <div
                         dangerouslySetInnerHTML={{
                           __html: formatMarkdown(message.content)
                         }}
                       />
+                      {message.isStreaming && (
+                        <div className="absolute bottom-1 right-1">
+                          <div className="animate-spin h-3 w-3 border-2 border-gray-600 border-t-transparent rounded-full" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}

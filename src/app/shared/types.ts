@@ -4,9 +4,10 @@
 export interface Message {
   id: string;
   content: string;
-  sender: 'user' | 'system';
+  sender: 'user' | 'system' | 'assistant';
   timestamp: Date;
   files?: File[];
+  isStreaming?: boolean;
 }
 
 // Model options
