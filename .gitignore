@@ -23,3 +23,5 @@ src/data
 PROMPTS.md
 .replit
 .replit.nix
+node_modules
+src/app/node_modules
