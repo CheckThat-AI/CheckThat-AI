@@ -108,8 +108,110 @@ export default function EvaluationInterface() {
     setIsPromptModalOpen(true);
   };
 
+  // --- Output Log Modal State and Logic ---
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logMessages, setLogMessages] = useState<string[]>([]);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  // Capture console.log and console.error
+  useEffect(() => {
+    const origLog = console.log;
+    const origErr = console.error;
+    function captureLog(...args: any[]) {
+      setLogMessages(prev => [...prev, `[LOG] ${args.join(' ')}`]);
+      origLog(...args);
+    }
+    function captureErr(...args: any[]) {
+      setLogMessages(prev => [...prev, `[ERROR] ${args.join(' ')}`]);
+      origErr(...args);
+    }
+    console.log = captureLog;
+    console.error = captureErr;
+    return () => {
+      console.log = origLog;
+      console.error = origErr;
+    };
+  }, []);
+
+  // Auto-scroll log modal to bottom
+  useEffect(() => {
+    if (showLogModal && logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [logMessages, showLogModal]);
+
   return (
     <div>
+
+      {showLogModal && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-60 overflow-auto" onClick={() => setShowLogModal(false)}>
+          <div 
+            className="bg-gray-900 rounded-lg shadow-lg w-full max-w-4xl mx-auto my-8 p-6 relative flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg text-white font-bold">Client Output Log</h3>
+              <button
+                onClick={() => setShowLogModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <div
+              ref={logRef}
+              className="bg-black text-green-300 font-mono text-xs rounded p-4 overflow-y-auto border border-slate-700 flex-1"
+              style={{ 
+                minHeight: '200px',
+                maxHeight: '70vh',
+                maxWidth: '90vw',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word'
+              }}
+            >
+              {logMessages.length === 0 ? (
+                <span className="text-slate-400">No output yet. Start the evaluation to see logs here.</span>
+              ) : (
+                logMessages.map((msg, idx) => (
+                  <div key={idx} className="py-0.5 border-b border-slate-800 last:border-0">
+                    {msg}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="mt-4 flex justify-between items-center text-xs text-slate-400">
+              <div>
+                {logMessages.length > 0 && (
+                  <span>{logMessages.length} log entries</span>
+                )}
+              </div>
+              <div className="space-x-2">
+                {logMessages.length > 0 && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(logMessages.join('\n'));
+                      toast({
+                        title: 'Copied to clipboard',
+                        variant: 'default',
+                      });
+                    }}
+                    className="text-slate-300 hover:text-white"
+                  >
+                    Copy All
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowLogModal(false)}
+                  className="px-3 py-1 bg-slate-700 text-white rounded hover:bg-slate-600"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Animated Evaluation Mode Text */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -279,15 +381,38 @@ export default function EvaluationInterface() {
             
             <div className="flex justify-between items-center mt-2">
               <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
-              <Button
-                type="button"
-                onClick={() => startEvaluation()}
-                disabled={evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0 || progressStatus === 'processing'}
-                className="bg-gray-800 hover:bg-gray-900 text-white"
-              >
-                <Play className="h-4 w-4 mr-1" />
-                Start Evaluation
-              </Button>
+              <div className="flex space-x-2">
+                {progressStatus === 'pending' ? (
+                  <Button
+                    type="button"
+                    onClick={() => startEvaluation()}
+                    disabled={evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0}
+                    className="bg-gray-800 hover:bg-gray-900 text-white"
+                  >
+                    <Play className="h-4 w-4 mr-1" />
+                    Start Evaluation
+                  </Button>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      onClick={() => startEvaluation()}
+                      disabled={progressStatus === 'processing'}
+                      className="bg-gray-800 hover:bg-gray-900 text-white"
+                    >
+                      {progressStatus === 'processing' ? 'Processing...' : 'Restart Evaluation'}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setShowLogModal(true)}
+                      variant="outline"
+                      className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
+                    >
+                      View Output Log
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           
