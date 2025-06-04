@@ -25,3 +25,13 @@ PROMPTS.md
 .replit.nix
 node_modules
 src/app/node_modules
+src/app/package.json
+src/app/package-lock.json
+src/app/tsconfig.json
+src/app/postcss.config.js
+src/app/tailwind.config.ts
+src/app/vite.config.ts
+src/app/replit.nix
+src/app/theme.json
+src/app/pyproject.toml
+src/app/uv.lock
