@@ -76,7 +76,7 @@ fi
 
 # Run npm install and check for errors
 if ! npm install; then
-    echo "Error: npm install failed. Check for permission issues or network connectivity."
+    echo "Error: npm install failed. Check for permission issues, file locks (e.g., antivirus, running processes), or network connectivity."
     exit 1
 fi
 
@@ -89,12 +89,33 @@ if npm audit 2>/dev/null | grep -q "found"; then
     }
 fi
 
+# Check for deprecated packages and replace with tsx
+echo "Checking for deprecated @esbuild-kit packages..."
+if npm ls @esbuild-kit/esm-loader @esbuild-kit/core-utils 2>/dev/null | grep -q "@esbuild-kit"; then
+    echo "Deprecated @esbuild-kit packages found. Replacing with tsx..."
+    npm uninstall @esbuild-kit/esm-loader @esbuild-kit/core-utils
+    npm install tsx || {
+        echo "Warning: Failed to install tsx. You may need to update your package.json manually to use tsx instead of @esbuild-kit packages."
+    }
+fi
+
 cd "$SCRIPT_DIR"
 
 # Install uv and create virtual environment
 echo "Setting up Python virtual environment..."
-pip install uv
-uv venv .venv
+if ! pip install uv; then
+    echo "Error: Failed to install uv. Ensure pip is installed and try again."
+    exit 1
+fi
+
+if ! uv venv .venv; then
+    echo "Error: Failed to create virtual environment with uv. Ensure uv is installed correctly. Falling back to pip venv..."
+    if ! python -m venv .venv; then
+        echo "Error: Failed to create virtual environment with pip venv. Ensure Python and pip are installed correctly."
+        exit 1
+    fi
+fi
+
 
 # Activate virtual environment based on OS
 echo "Activating virtual environment..."
@@ -118,7 +139,18 @@ fi
 
 # Install Python dependencies
 echo "Installing Python dependencies..."
-uv pip install -r requirements.txt
+if [ ! -f "requirements.txt" ]; then
+    echo "Error: requirements.txt not found in $SCRIPT_DIR. Please create it with the necessary dependencies (e.g., fastapi[standard])."
+    exit 1
+fi
+# Try uv pip install, fall back to pip if it fails
+if ! uv pip install -r requirements.txt; then
+    echo "Warning: uv pip install failed. Falling back to pip..."
+    if ! pip install -r requirements.txt; then
+        echo "Error: Failed to install Python dependencies with both uv and pip. Check requirements.txt for errors."
+        exit 1
+    fi
+fi
 
 # Function to start processes based on OS
 start_services() {
