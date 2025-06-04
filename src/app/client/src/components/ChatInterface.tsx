@@ -68,9 +68,24 @@ export default function ChatInterface() {
     }
   }, [messages]);
   
+  const [showApiKeyError, setShowApiKeyError] = useState(false);
+
   const handleSubmit = async (e?: React.FormEvent | React.KeyboardEvent) => {
     console.log('handleSubmit called');
     if (e) e.preventDefault();
+    
+    // Check if API key is required but not provided
+    const isDefaultModel = selectedModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free';
+    const apiKeyRequired = !isDefaultModel && !apiKey.trim();
+    
+    if (apiKeyRequired) {
+      setShowApiKeyError(true);
+      // Auto-hide the error after 3 seconds
+      setTimeout(() => setShowApiKeyError(false), 3000);
+      return;
+    }
+    
+    setShowApiKeyError(false);
     console.log('Calling sendMessage');
 
     // Add the user message to the chat immediately
@@ -232,13 +247,24 @@ export default function ChatInterface() {
                         )}
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Button
-                          type="submit"
-                          className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
-                          disabled={!currentMessage.trim()}
-                        >
-                          <ArrowUpIcon className="h-4 w-4" />
-                        </Button>
+                        <div className="relative">
+                          <Button
+                            type="submit"
+                            className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                            disabled={!currentMessage.trim()}
+                          >
+                            <ArrowUpIcon className="h-4 w-4" />
+                          </Button>
+                          {showApiKeyError && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-yellow-500 text-white text-sm rounded-md whitespace-nowrap"
+                            >
+                              Please enter an API key for this model
+                            </motion.div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
