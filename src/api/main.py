@@ -14,7 +14,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.utils.get_model_response import get_model_response
-from src.utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_prompt
+from src.utils.prompts import sys_prompt, few_shot_prompt, few_shot_CoT_prompt, instruction, chain_of_thought_trigger
 from src.utils.prompt_eval import get_prompt_type
 from src.utils.chat import get_chatbot_response
 
@@ -129,34 +129,18 @@ async def normalize_single_claim(request: SingleClaimRequest):
             os.environ[f"{API_PROVIDER}_API_KEY"] = request.api_key
 
         print(f"Model: {request.model} \nUser Query: {request.user_query}")
-
-        prompt_type = get_prompt_type(request.user_query)
-        print(f"Prompt type: {prompt_type}")
-        if prompt_type == "claim_normalization":
-
-            def stream_response():
-                for chunk in get_model_response(
-                    model=request.model,
-                    user_prompt=request.user_query,
-                    sys_prompt="Few-shot-CoT",
-                    gen_type="init"
-                ):
-                    yield chunk
-
-            return StreamingResponse(stream_response(), media_type="text/plain")
         
-        elif prompt_type == "general_query":
-            def stream_response():
-                for chunk in get_chatbot_response(
-                    model=request.model,
-                    user_prompt=request.user_query,
-                    sys_prompt=chat_prompt,
-                ):
-                    yield chunk
+        def stream_response():
+            for chunk in get_model_response(
+                model=request.model,
+                user_prompt=f"{few_shot_CoT_prompt}\n\n{request.user_query}",
+                sys_prompt=sys_prompt,
+                gen_type="chat"
+            ):
+                yield chunk
 
-            return StreamingResponse(stream_response(), media_type="text/plain")
+        return StreamingResponse(stream_response(), media_type="text/plain")
 
     except Exception as e:
         print("Error in normalize_single_claim:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
