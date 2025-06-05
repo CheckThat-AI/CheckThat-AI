@@ -447,11 +447,17 @@ export default function EvaluationInterface() {
             {selectedEvalMethod && (
               <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
                 <p className="text-sm text-slate-300">
-                  <span className="font-medium text-white">{selectedEvalMethod}</span> selected with{' '}
-                  <span className="font-medium text-primary">
-                    {selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations}
-                  </span>{' '}
-                  iteration{(selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations) > 1 ? 's' : ''}
+                  {(() => {
+                    const iterationCount = selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations;
+                    const pluralSuffix = iterationCount > 1 ? 's' : '';
+                    return (
+                      <>
+                        <span className="font-medium text-white">{selectedEvalMethod}</span> selected with{' '}
+                        <span className="font-medium text-primary">{iterationCount}</span>{' '}
+                        iteration{pluralSuffix}
+                      </>
+                    );
+                  })()}
                 </p>
               </div>
             )}
