@@ -61,6 +61,20 @@ export default function ChatInterface() {
     { value: 'grok-3-latest', label: 'Grok 3 Beta' },
   ];
 
+  // Add auto-resize function
+  const adjustTextareaHeight = () => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${textarea.scrollHeight}px`;
+    }
+  };
+
+  // Update useEffect to handle initial resize and content changes
+  useEffect(() => {
+    adjustTextareaHeight();
+  }, [currentMessage]);
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     if (messageContainerRef.current) {
@@ -117,7 +131,7 @@ export default function ChatInterface() {
         body: JSON.stringify({
           user_query: currentMessage,
           model: selectedModel,
-          api_key: apiKey
+          ...(selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && { api_key: apiKey })
         }),
       });
 
@@ -167,6 +181,12 @@ export default function ChatInterface() {
     textareaRef.current?.focus();
   };
 
+  // Update the onChange handler
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCurrentMessage(e.target.value);
+    adjustTextareaHeight();
+  };
+
   const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     console.log('handleTextareaKeyDown called with key:', e.key);
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -178,7 +198,7 @@ export default function ChatInterface() {
   const isChatStarted = messages.length > 1 || (messages.length === 1 && messages[0].sender !== 'system');
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col h-full">
       {!isChatStarted ? (
         <div className="flex flex-col items-center justify-center flex-1">
           <div className="w-full max-w-3xl">
@@ -189,25 +209,31 @@ export default function ChatInterface() {
               </div>
             )}
             {/* Input area */}
-            <Card className="bg-transparent border-0 shadow-none w-full max-w-3xl mx-auto">
-              <CardContent className="p-4 bg-gray-700 rounded-lg">
+            <Card className="scrollbar-hide bg-transparent border-0 shadow-none w-full max-w-3xl mx-auto">
+              <CardContent className="scrollbar-hide p-4 bg-gray-700 rounded-lg">
                 <form onSubmit={handleSubmit} className="flex flex-col space-y-3">
-                  <div className="flex flex-col border border-gray-800 rounded-lg p-2 gap-2 bg-gradient-to-b from-gray-600 to-gray-700">
+                  <div className="scrollbar-hide flex flex-col border border-gray-800 rounded-lg p-2 gap-2 bg-gradient-to-b from-gray-600 to-gray-700">
                     <Textarea
                       id="message-input"
                       ref={textareaRef}
-                      className="flex-grow text-white resize-none border-0 focus:ring-0 focus:outline-none bg-transparent min-h-[40px] focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-slate-200"
+                      className="flex-grow text-white resize-none border-0  
+                      bg-transparent min-h-[40px] max-h-[200px] 
+                      focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
+                      placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
                       placeholder="Type or paste your input text here..."
-                      rows={2}
                       value={currentMessage}
-                      onChange={(e) => setCurrentMessage(e.target.value)}
+                      onChange={handleTextareaChange}
                       onKeyDown={handleTextareaKeyDown}
                     />
                     <div className="flex items-center justify-between pt-2">
                       <div className="flex items-center space-x-2">
                         <Select
                           value={selectedModel}
-                          onValueChange={(value) => setSelectedModel(value as ModelOption)}
+                          onValueChange={(value) => {
+                            setSelectedModel(value as ModelOption);
+                            // Clear API key whenever model changes
+                            setApiKey('');
+                          }}
                         >
                           <SelectTrigger className="w-[200px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
                             <SelectValue placeholder="Select model" />
@@ -269,7 +295,7 @@ export default function ChatInterface() {
                     </div>
                   </div>
                   <AnimatePresence>
-                    {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
+                    {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && !apiKey.trim() && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -291,15 +317,12 @@ export default function ChatInterface() {
           </div>
         </div>
       ) : (
-        <>
+        <div className="flex flex-col h-full max-h-[calc(100vh-120px)]">
           <div
-            className="mt-10 flex-1 flex-col overflow-auto scrollbar-hide 
-            bg-gradient-to-b from-gray-700 to-gray-800 
-            border border-gray-800 shadow-lg rounded-lg
+            className="flex-1 flex-col overflow-auto scrollbar-hide
             p-4 max-w-3xl w-full mx-auto 
-            font-mono text-sm"
+            font-mono text-sm mb-4 min-h-0"
             ref={messageContainerRef}
-            style={{ minHeight: '120px', maxHeight: '400px' }}
           >
             <pre className="whitespace-pre-wrap">
               {messages
@@ -311,10 +334,10 @@ export default function ChatInterface() {
                   >
                     <div
                       className={`message-bubble p-3 rounded-2xl mb-1 relative 
-                        max-w-[80%] 
+                        max-w-[90%] text-base
                         ${message.sender === 'user' 
-                          ? 'bg-primary text-white rounded-tr-sm self-end' 
-                          : 'bg-slate-100 text-slate-800 rounded-tl-sm self-start'}
+                          ? 'bg-gradient-to-bl from-gray-600 to-gray-700 text-white rounded-tr-sm self-end' 
+                          : 'text-white rounded-tl-sm self-start'}
                         ${message.isStreaming ? 'animate-pulse' : ''}`}
                     >
                       <div
@@ -334,8 +357,7 @@ export default function ChatInterface() {
           </div>
           <Card 
             className="bg-transparent border-0 shadow-none 
-            flex-1 flex-col max-w-3xl w-full mx-auto
-            mt-4"
+            max-w-3xl w-full mx-auto flex-shrink-0"
           >
             <CardContent 
               className="p-4 bg-gradient-to-b from-gray-600 to-gray-700 
@@ -351,21 +373,24 @@ export default function ChatInterface() {
                     id="message-input"
                     ref={textareaRef}
                     className="flex-grow text-white resize-none border-0 
-                    bg-transparent min-h-[40px] 
+                    bg-transparent min-h-[40px] max-h-[200px]
                     focus:ring-0 focus:outline-none focus:border-0 
                     focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
-                    placeholder:text-slate-200"
+                    placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
                     placeholder="Type or paste your input text here..."
-                    rows={2}
                     value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    onChange={handleTextareaChange}
                     onKeyDown={handleTextareaKeyDown}
                   />
                   <div className="flex items-center justify-between pt-2">
                     <div className="flex items-center space-x-2">
                       <Select
                         value={selectedModel}
-                        onValueChange={(value) => setSelectedModel(value as ModelOption)}
+                        onValueChange={(value) => {
+                          setSelectedModel(value as ModelOption);
+                          // Clear API key whenever model changes
+                          setApiKey('');
+                        }}
                       >
                         <SelectTrigger className="w-[200px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
                           <SelectValue placeholder="Select model" />
@@ -416,7 +441,7 @@ export default function ChatInterface() {
                   </div>
                 </div>
                 <AnimatePresence>
-                  {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
+                  {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && !apiKey.trim() && (
                     <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -435,7 +460,7 @@ export default function ChatInterface() {
               </form>
             </CardContent>
           </Card>
-        </>
+        </div>
       )}
     </div>
   );
