@@ -46,20 +46,17 @@ def get_model_response(model:str, user_prompt:str, sys_prompt:str, gen_type:str)
         output_type = NormalizedClaim
     
     if model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14", "grok-3-latest"]:
-        
         generated_claim = get_gpt_response(model, sys_prompt, user_prompt, output_type, gen_type)
 
     elif model == "grok-3-latest":
-        
         generated_claim = get_grok_response(model, sys_prompt, user_prompt, output_type, gen_type)
              
     elif model == "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free":
-        print("calling llama for a response")
         generated_claim = get_llama_response(model, sys_prompt, user_prompt, output_type, gen_type)
-        
+
     elif model in ["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"]:
-        
         generated_claim = get_gemini_response(model, sys_prompt, user_prompt, output_type, gen_type)
+        
     else:
         generated_claim = get_claude_response(model, sys_prompt, user_prompt, output_type, gen_type)
             
