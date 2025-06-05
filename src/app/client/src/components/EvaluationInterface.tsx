@@ -57,6 +57,11 @@ export default function EvaluationInterface() {
   const [selectedPrompt, setSelectedPrompt] = useState<PromptStyleOption | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
+  const [selectedEvalMethod, setSelectedEvalMethod] = useState<string | null>(null);
+  const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
+  const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
+  const [showSelfRefineInput, setShowSelfRefineInput] = useState(false);
+  const [showCrossRefineInput, setShowCrossRefineInput] = useState(false);
   const { toast } = useToast();
   
   const modelOptions = [
@@ -140,6 +145,22 @@ export default function EvaluationInterface() {
     }
   }, [logMessages, showLogModal]);
 
+  // Close numeric inputs when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.relative')) {
+        setShowSelfRefineInput(false);
+        setShowCrossRefineInput(false);
+      }
+    };
+
+    if (showSelfRefineInput || showCrossRefineInput) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showSelfRefineInput, showCrossRefineInput]);
+
   return (
     <div>
 
@@ -217,7 +238,7 @@ export default function EvaluationInterface() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-6 p-4 bg-gray-800 border-0 shadow-sm border-blue-200 rounded-xl mt-8"
+        className="mb-6 px-2 py-2 bg-gray-700 border-0 shadow-xl border-blue-200 rounded-md mt-8 max-w-6xl mx-auto"
       >
         <p className="text-slate-300 text-center">
           This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
@@ -318,8 +339,126 @@ export default function EvaluationInterface() {
                 onChange={(e) => updateEvaluationData({ customPrompt: e.target.value })}
               />
             </div>
+          </div>
 
-            {/* File Upload Section */}
+          {/* Eval Methods Section */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-white mb-3">Evaluation Methods</h3>
+            <p className="text-sm text-slate-300 mb-4">
+              Select an evaluation method for iterative refinement:
+            </p>
+            
+            <div className="flex flex-wrap gap-4 mb-4">
+              {/* Self-Refine Option */}
+              <div className="relative">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${
+                          selectedEvalMethod === 'SELF-REFINE'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedEvalMethod(selectedEvalMethod === 'SELF-REFINE' ? null : 'SELF-REFINE');
+                          setShowSelfRefineInput(!showSelfRefineInput);
+                          setShowCrossRefineInput(false);
+                        }}
+                      >
+                        SELF-REFINE
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-gray-900 border-gray-600">
+                      <div className="text-white text-sm mb-2 font-medium">Self-Refine Process</div>
+                      <div className="bg-gray-800 p-2 rounded text-xs text-slate-300">
+                        Initial Claim → Feedback → Refined Claim → Repeat
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                {/* Numeric Input for Self-Refine */}
+                {showSelfRefineInput && (
+                  <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-40">
+                    <label htmlFor="self-refine-iterations" className="block text-sm text-slate-300 mb-2">Iterations (1-10):</label>
+                    <input
+                      id="self-refine-iterations"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={selfRefineIterations}
+                      onChange={(e) => setSelfRefineIterations(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                      className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Cross-Refine Option */}
+              <div className="relative">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${
+                          selectedEvalMethod === 'CROSS-REFINE'
+                            ? 'bg-primary/10 border-primary text-primary'
+                            : ''
+                        }`}
+                        onClick={() => {
+                          setSelectedEvalMethod(selectedEvalMethod === 'CROSS-REFINE' ? null : 'CROSS-REFINE');
+                          setShowCrossRefineInput(!showCrossRefineInput);
+                          setShowSelfRefineInput(false);
+                        }}
+                      >
+                        CROSS-REFINE
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-gray-900 border-gray-600">
+                      <div className="text-white text-sm mb-2 font-medium">Cross-Refine Process</div>
+                      <div className="bg-gray-800 p-2 rounded text-xs text-slate-300">
+                        Initial Claim (Model A) → Feedback (Model B) → Refined Claim (Model A) → Repeat
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                
+                {/* Numeric Input for Cross-Refine */}
+                {showCrossRefineInput && (
+                  <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-40">
+                    <label htmlFor="cross-refine-iterations" className="block text-sm text-slate-300 mb-2">Iterations (1-10):</label>
+                    <input
+                      id="cross-refine-iterations"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={crossRefineIterations}
+                      onChange={(e) => setCrossRefineIterations(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                      className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {selectedEvalMethod && (
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
+                <p className="text-sm text-slate-300">
+                  <span className="font-medium text-white">{selectedEvalMethod}</span> selected with{' '}
+                  <span className="font-medium text-primary">
+                    {selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations}
+                  </span>{' '}
+                  iteration{(selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations) > 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* File Upload Section */}
+          <div className="mb-8">
             <div className="mt-6">
               <h4 className="text-md font-medium text-white mb-2">Upload Dataset</h4>
               <div className="flex items-center space-x-2">
