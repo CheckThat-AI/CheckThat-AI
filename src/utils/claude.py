@@ -11,8 +11,9 @@ def get_claude_response(model: str, sys_prompt: str, user_prompt: str, response_
             # Claim normalization: stream, then parse, then stream the claim field
             stream = client.messages.create(
                 model=model,
+                max_tokens=8192,
                 response_format={"type": "json"},
-                messages=[{"role": "user", "content": user_prompt}],
+                messages=[{"role": "user", "content": user_prompt}, {"role": "system", "content": sys_prompt}],
                 stream=True
             )
             collected_chunks = []
