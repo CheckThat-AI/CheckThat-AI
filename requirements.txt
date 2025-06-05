@@ -7,6 +7,6 @@ together
 openai
 anthropic
 google-genai
+instructor
 fastapi[standard]
-uvicorn>=0.24.0
-python-multipart>=0.0.6
+uvicorn
