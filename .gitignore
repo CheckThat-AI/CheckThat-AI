@@ -24,6 +24,8 @@ PROMPTS.md
 .replit
 .replit.nix
 node_modules
+package.json
+package-lock.json
 src/app/node_modules
 src/app/package.json
 src/app/package-lock.json
