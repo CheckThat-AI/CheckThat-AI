@@ -36,10 +36,12 @@ def get_model_response(model:str, user_prompt:str, sys_prompt:str, gen_type:str)
     """
     assert isinstance(user_prompt, str), "user_prompt must be a string"
     assert isinstance(sys_prompt, str), "sys_prompt must be a string"
-    assert gen_type in ("feedback", "init", "refine"), f"gen_type must be either 'feedback' or 'init' or 'refine'; got {gen_type}"
+    assert gen_type in ("feedback", "init", "refine", "chat"), f"gen_type must be either 'feedback' or 'init' or 'refine' or 'chat'; got {gen_type}"
     
     if gen_type == "feedback":
         output_type = Feedback
+    elif gen_type == "chat":
+        output_type = None
     else:
         output_type = NormalizedClaim
     
