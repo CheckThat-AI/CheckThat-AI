@@ -1,4 +1,3 @@
-
 #!/bin/bash
 # run-project.sh
 set -e  # Exit on error
@@ -60,123 +59,23 @@ elif [ "$OS" = "linux" ] || [ "$OS" = "mac" ]; then
     fi
 fi
 
-# Install Node.js dependencies for the app
-echo "Installing Node.js dependencies..."
-cd "$APP_DIR"
-
-# Clear npm cache and remove node_modules to avoid conflicts
-npm cache clean --force
-if [ -d "node_modules" ]; then
-    echo "Removing existing node_modules..."
-    rm -rf node_modules || {
-        echo "Error: Failed to delete node_modules. Try running this script with appropriate permissions."
-        exit 1
-    }
-fi
-
-# Run npm install and check for errors
-if ! npm install; then
-    echo "Error: npm install failed. Check for permission issues, file locks (e.g., antivirus, running processes), or network connectivity."
-    exit 1
-fi
-
-# Address vulnerabilities
-echo "Checking for vulnerabilities in Node.js dependencies..."
-if npm audit 2>/dev/null | grep -q "found"; then
-    echo "Vulnerabilities found. Running npm audit fix..."
-    npm audit fix 2>/dev/null || {
-        echo "Warning: npm audit fix failed. Consider running 'npm audit fix --force' manually to address all issues (may include breaking changes)."
-    }
-fi
-
-# Check for deprecated packages and replace with tsx
-echo "Checking for deprecated @esbuild-kit packages..."
-if npm ls @esbuild-kit/esm-loader @esbuild-kit/core-utils 2>/dev/null | grep -q "@esbuild-kit"; then
-    echo "Deprecated @esbuild-kit packages found. Replacing with tsx..."
-    npm uninstall @esbuild-kit/esm-loader @esbuild-kit/core-utils
-    npm install tsx || {
-        echo "Warning: Failed to install tsx. You may need to update your package.json manually to use tsx instead of @esbuild-kit packages."
-    }
-fi
-
-cd "$SCRIPT_DIR"
-
-# Install uv and create virtual environment
-echo "Setting up Python virtual environment..."
-if ! pip install uv; then
-    echo "Error: Failed to install uv. Ensure pip is installed and try again."
-    exit 1
-fi
-
-if ! uv venv .venv; then
-    echo "Error: Failed to create virtual environment with uv. Ensure uv is installed correctly. Falling back to pip venv..."
-    if ! python -m venv .venv; then
-        echo "Error: Failed to create virtual environment with pip venv. Ensure Python and pip are installed correctly."
-        exit 1
-    fi
-fi
-
-
-# Activate virtual environment based on OS
-echo "Activating virtual environment..."
-if [ "$OS" = "windows" ]; then
-    # Windows activation path
-    if [ -f ".venv/Scripts/activate" ]; then
-        source .venv/Scripts/activate
-    else
-        echo "Error: Windows virtual environment activation script not found"
-        exit 1
-    fi
-else
-    # Unix-like activation path (Linux, Mac, Replit)
-    if [ -f ".venv/bin/activate" ]; then
-        source .venv/bin/activate
-    else
-        echo "Error: Unix virtual environment activation script not found"
-        exit 1
-    fi
-fi
-
-# Install Python dependencies
-echo "Installing Python dependencies..."
-if [ ! -f "requirements.txt" ]; then
-    echo "Error: requirements.txt not found in $SCRIPT_DIR. Please create it with the necessary dependencies (e.g., fastapi[standard])."
-    exit 1
-fi
-# Try uv pip install, fall back to pip if it fails
-if ! uv pip install -r requirements.txt; then
-    echo "Warning: uv pip install failed. Falling back to pip..."
-    if ! pip install -r requirements.txt; then
-        echo "Error: Failed to install Python dependencies with both uv and pip. Check requirements.txt for errors."
-        exit 1
-    fi
-fi
-
 # Function to start processes based on OS
 start_services() {
-    echo "Starting frontend and backend..."
+    echo "Starting the App..."
     
-    if [ "$OS" = "windows" ]; then
-        # Windows: use start command for background processes
-        echo "Starting frontend on Windows..."
-        cd "$APP_DIR" && start /B npm run dev
-        
-        echo "Starting backend on Windows..."
-        cd "$API_DIR" && start /B fastapi dev main.py --host 0.0.0.0 --port 8000
-    else
-        # Unix-like: use & for background processes
-        echo "Starting frontend on Unix-like system..."
-        cd "$APP_DIR" && npm run dev &
-        FRONTEND_PID=$!
-        
-        echo "Starting backend on Unix-like system..."
-        cd "$API_DIR" && fastapi dev main.py --host 0.0.0.0 --port 8000 &
-        BACKEND_PID=$!
-        
-        # Store PIDs for cleanup
-        echo "Frontend PID: $FRONTEND_PID"
-        echo "Backend PID: $BACKEND_PID"
-    fi
+    # Start frontend
+    echo "Starting frontend..."
+    cd "$APP_DIR" && npm run dev &
+    FRONTEND_PID=$!
+    
+    # Start backend
+    echo "Starting backend..."
+    cd "$API_DIR" && fastapi dev main.py --host 0.0.0.0 --port 8000 &
+    BACKEND_PID=$!
+    
+    # Store PIDs for cleanup
+    echo "Frontend PID: $FRONTEND_PID"
+    echo "Backend PID: $BACKEND_PID"
 }
 
 # Start the services
