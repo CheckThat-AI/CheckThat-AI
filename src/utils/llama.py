@@ -26,9 +26,13 @@ def get_llama_response(model: str, sys_prompt: str, user_prompt: str, response_f
                         "schema": response_format.model_json_schema(),
                     }
                 )
+                
                 parsed_response = json.loads(response.choices[0].message.content)
-                claim_text = parsed_response.get("claim", "")
-                yield json.dumps({"normalizedClaim": claim_text})
+                if gen_type == "init":
+                    return parsed_response
+                else:
+                    claim_text = parsed_response.get("claim", "")
+                    yield json.dumps({"normalizedClaim": claim_text})
             except json.JSONDecodeError as e:
                 raise HTTPException(
                     status_code=500,
