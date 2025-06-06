@@ -1,15 +1,13 @@
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import uvicorn
 import pandas as pd
 import os
 import sys
 import json
-import tempfile
 import asyncio
-import signal
 import threading
 from pathlib import Path
 from fastapi.responses import StreamingResponse
@@ -19,7 +17,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.utils.get_model_response import get_model_response
-from src.utils.prompts import sys_prompt, few_shot_prompt, few_shot_CoT_prompt, instruction, chain_of_thought_trigger
+from src.utils.prompts import sys_prompt, few_shot_CoT_prompt
 from src.utils.evaluate import start_evaluation
 
 app = FastAPI(
@@ -58,40 +56,19 @@ class HealthCheck(BaseModel):
     status: str
     version: str
 
-class ErrorResponse(BaseModel):
-    detail: str
-
 class EvalRequest(BaseModel):
     model: str
     prompt_style: str
-    self_refine_iterations: int = 0
+    refine_iterations: int = 0
     eval_method: Optional[str] = None
     custom_prompt: Optional[str] = None
     api_key: Optional[str] = None
     cross_refine_model: Optional[str] = None
 
-class EvalResponse(BaseModel):
-    meteor_score: float
-    model: str
-    prompt_style: str
-    self_refine_iterations: int
-    eval_method: Optional[str] = None
-    custom_prompt: Optional[str] = None
-
-class ProgressUpdate(BaseModel):
-    type: str  # "progress", "log", "status", "error", "complete"
-    data: Dict[str, Any]
-
-class EvalStatusRequest(BaseModel):
-    session_id: str
-
 class ChatRequest(BaseModel):
     user_query: str
     model: str
     api_key: Optional[str] = None
-
-class ChatResponse(BaseModel):
-    normalizedClaim: str = Field(..., description="The normalized claim")
 
 @app.get("/", response_model=HealthCheck)
 async def root():
@@ -141,14 +118,9 @@ async def chat_interface(request: ChatRequest):
         else:
             API_PROVIDER = "TOGETHER"
         
-        print(f"Using API provider: {API_PROVIDER}")
-        
         if request.api_key:
-            print("Setting API key for provider")
             os.environ[f"{API_PROVIDER}_API_KEY"] = request.api_key
 
-        print(f"Model: {request.model} \nUser Query: {request.user_query}")
-        
         def stream_response():
             for chunk in get_model_response(
                 model=request.model,
@@ -161,139 +133,7 @@ async def chat_interface(request: ChatRequest):
         return StreamingResponse(stream_response(), media_type="text/plain")
 
     except Exception as e:
-        print("Error in normalize_single_claim:", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/eval", response_model=EvalResponse)
-async def eval_interface(
-    file: UploadFile = File(...),
-    request_data: str = Form(...)
-):
-    """
-    Endpoint to evaluate claims from uploaded datasets
-    """
-    try:
-        # Parse the request data from JSON string
-        request_dict = json.loads(request_data)
-        request = EvalRequest(**request_dict)
-        
-        print("Received request:", request.model_dump_json(indent=4))
-        print(f"File: {file.filename}")
-
-        valid_models = [
-            "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-            "claude-3.7-sonnet-latest",
-            "gpt-4o-2024-11-20",
-            "gpt-4.1-2025-04-14",
-            "gpt-4.1-nano-2025-04-14",
-            "gemini-2.5-pro-preview-05-06",
-            "gemini-2.5-flash-preview-04-17",
-            "grok-3-latest"
-        ]
-        
-        valid_prompt_styles = ["Zero-shot", "Few-shot", "Zero-shot-CoT", "Few-shot-CoT"]
-        
-        # Validation
-        if request.model not in valid_models:
-            print(f"Invalid model: {request.model}")
-            raise HTTPException(status_code=400, detail=f"Invalid model. Must be one of: {', '.join(valid_models)}")
-        
-        if request.prompt_style not in valid_prompt_styles:
-            print(f"Invalid prompt style: {request.prompt_style}")
-            raise HTTPException(status_code=400, detail=f"Invalid prompt style. Must be one of: {', '.join(valid_prompt_styles)}")
-        
-        # Validate file type
-        if not file.filename.endswith(('.csv', '.json', '.jsonl')):
-            raise HTTPException(status_code=400, detail="Invalid file type. Please upload CSV, JSON, or JSONL file.")
-        
-        print(f"Processing file: {file.filename}")
-        print(f"Model: {request.model}, Prompt Style: {request.prompt_style}")
-        print(f"Self-refine iterations: {request.self_refine_iterations}")
-        print(f"Eval method: {request.eval_method}")
-
-        # Set API key if provided
-        if request.api_key:
-            API_PROVIDER: Optional[str] = None
-            
-            if request.model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14"]:
-                API_PROVIDER = "OPENAI"
-            elif request.model == "grok-3-latest":
-                API_PROVIDER = "GROK"
-            elif request.model in ["claude-3-7-sonnet-latest"]:
-                API_PROVIDER = "ANTHROPIC"
-            elif request.model in ["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"]:
-                API_PROVIDER = "GEMINI"
-            
-            if API_PROVIDER:
-                print(f"Setting API key for provider: {API_PROVIDER}")
-                os.environ[f"{API_PROVIDER}_API_KEY"] = request.api_key
-
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{file.filename}") as tmp_file:
-            content = await file.read()
-            tmp_file.write(content)
-            tmp_file_path = tmp_file.name
-
-        try:
-            # Load the dataset
-            if file.filename.endswith('.csv'):
-                df = pd.read_csv(tmp_file_path)
-            elif file.filename.endswith('.json'):
-                df = pd.read_json(tmp_file_path)
-            elif file.filename.endswith('.jsonl'):
-                df = pd.read_json(tmp_file_path, lines=True)
-            else:
-                raise HTTPException(status_code=400, detail="Unsupported file format")
-
-            print(f"Loaded dataset with {len(df)} rows")
-            print(f"Columns: {df.columns.tolist()}")
-
-            # Validate required columns
-            required_columns = ['post', 'normalized claim']
-            if not all(col in df.columns for col in required_columns):
-                raise HTTPException(
-                    status_code=400, 
-                    detail=f"Dataset must contain columns: {required_columns}. Found: {df.columns.tolist()}"
-                )
-
-            # Run evaluation
-            print("Starting evaluation...")
-            combination_scores = start_evaluation(
-                models=[request.model],
-                prompt_styles=[request.prompt_style],
-                input_data=df,
-                self_refine_iters=request.self_refine_iterations
-            )
-            
-            # Get the score for this combination
-            combo_key = list(combination_scores.keys())[0]
-            meteor_score = combination_scores[combo_key]
-            
-            print(f"Evaluation completed. METEOR score: {meteor_score}")
-
-            return EvalResponse(
-                meteor_score=meteor_score,
-                model=request.model,
-                prompt_style=request.prompt_style,
-                self_refine_iterations=request.self_refine_iterations,
-                eval_method=request.eval_method,
-                custom_prompt=request.custom_prompt
-            )
-
-        finally:
-            # Clean up temporary file
-            if os.path.exists(tmp_file_path):
-                os.unlink(tmp_file_path)
-
-    except json.JSONDecodeError as e:
-        print(f"JSON decode error: {e}")
-        raise HTTPException(status_code=400, detail=f"Invalid JSON in request_data: {str(e)}")
-    except pd.errors.EmptyDataError:
-        raise HTTPException(status_code=400, detail="The uploaded file is empty or invalid")
-    except pd.errors.ParserError as e:
-        raise HTTPException(status_code=400, detail=f"Error parsing file: {str(e)}")
-    except Exception as e:
-        print("Error in eval_interface:", str(e))
+        print("Error in chat_interface:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.websocket("/ws/evaluation/{session_id}")
@@ -347,6 +187,15 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
     Run evaluation with progress updates sent via WebSocket
     """
     import asyncio
+    import time
+    from threading import Lock
+    
+    # Batched logging system
+    log_batch = []
+    log_batch_lock = Lock()
+    last_flush_time = time.time()
+    BATCH_SIZE = 10  # Send logs when we have 10+ messages
+    FLUSH_INTERVAL = 2.0  # Send logs every 2 seconds regardless
     
     async def send_update(update_type: str, data: dict):
         try:
@@ -365,13 +214,54 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
             if stop_event and stop_event.is_set():
                 return
             
-            # Create a new event loop for this thread
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(send_update(update_type, data))
-            loop.close()
+            # Handle different update types
+            if update_type == "progress" or update_type == "status" or update_type == "error" or update_type == "complete":
+                # Send progress, status, error, and completion messages immediately
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(send_update(update_type, data))
+                loop.close()
+            elif update_type == "log":
+                # Batch log messages
+                nonlocal log_batch, last_flush_time
+                
+                # Filter out verbose logs - only keep important ones
+                log_type = data.get("type", "")
+                if log_type in ["debug", "feedback_detail", "iteration_start", "iteration_end"]:
+                    return  # Skip verbose logs
+                
+                with log_batch_lock:
+                    log_batch.append(data)
+                    current_time = time.time()
+                    
+                    # Flush if batch is full or enough time has passed
+                    if len(log_batch) >= BATCH_SIZE or (current_time - last_flush_time) >= FLUSH_INTERVAL:
+                        flush_logs()
+                        last_flush_time = current_time
         except Exception as e:
             print(f"Error in sync_send_update: {e}")
+    
+    def flush_logs():
+        """Send batched logs immediately"""
+        nonlocal log_batch
+        if not log_batch:
+            return
+            
+        try:
+            # Send all batched logs as a single message
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(send_update("log_batch", {"messages": log_batch.copy()}))
+            loop.close()
+            log_batch.clear()
+        except Exception as e:
+            print(f"Error flushing logs: {e}")
+    
+    def final_flush():
+        """Flush any remaining logs at the end"""
+        with log_batch_lock:
+            if log_batch:
+                flush_logs()
     
     try:
         # Send initial status
@@ -413,7 +303,7 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
                 sync_send_update("error", {"message": "Unsupported file format"})
                 return
                 
-            sync_send_update("log", {"message": f"Loaded dataset with {len(df)} rows"})
+            sync_send_update("status", {"message": f"Loaded dataset with {len(df)} rows"})
             
         except Exception as e:
             sync_send_update("error", {"message": f"Error loading dataset: {str(e)}"})
@@ -436,11 +326,14 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
             models=models,
             prompt_styles=prompt_styles,
             input_data=df,
-            self_refine_iters=self_refine_iterations,
+            refine_iters=self_refine_iterations,
             progress_callback=progress_callback,
             stop_event=stop_event,
             cross_refine_model=cross_refine_model
         )
+        
+        # Flush any remaining logs
+        final_flush()
         
         if combination_scores:  # Only if not stopped
             sync_send_update("complete", {
@@ -451,12 +344,14 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
             sync_send_update("status", {"message": "Evaluation was stopped"})
         
     except Exception as e:
+        final_flush()  # Flush logs even on error
         sync_send_update("error", {"message": f"Evaluation failed: {str(e)}"})
         print(f"Error in evaluation: {str(e)}")
         import traceback
         traceback.print_exc()
     finally:
         # Clean up
+        final_flush()  # Final flush
         if session_id in evaluation_stop_events:
             del evaluation_stop_events[session_id]
         if session_id in active_evaluations:
