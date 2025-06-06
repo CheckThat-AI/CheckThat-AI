@@ -135,10 +135,8 @@ export default function EvaluationInterface() {
       case 'pending':
         return 'Not started';
       case 'processing':
-        return progress < 30 ? 'Loading data...' : 
-              progress < 60 ? 'Processing claims...' : 
-              progress < 90 ? 'Generating results...' : 
-              'Finalizing evaluation...';
+        if (progress < 90) return 'Generating results...';
+        return 'Finalizing evaluation...';
       case 'completed':
         return 'Evaluation completed successfully';
       case 'error':
@@ -156,9 +154,6 @@ export default function EvaluationInterface() {
   // --- Output Log Modal State and Logic ---
   const [showLogModal, setShowLogModal] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
-
-  // No longer capturing console.log to reduce noise
-  // Only server-side logs will be displayed
 
   // Auto-scroll log modal to bottom
   useEffect(() => {
@@ -255,12 +250,9 @@ export default function EvaluationInterface() {
       <style>{scrollbarStyles}</style>
 
       {showLogModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-black bg-opacity-60 overflow-auto" 
-          onClick={() => setShowLogModal(false)}
-          role="dialog"
-          aria-modal="true"
-          tabIndex={-1}
+        <dialog 
+          open
+          className="fixed inset-0 z-50 bg-black bg-opacity-60 overflow-auto m-0 p-0 w-full h-full max-w-none max-h-none"
         >
           <div 
             className="bg-gray-900 rounded-lg shadow-lg w-full max-w-4xl mx-auto my-8 p-6 relative flex flex-col"
@@ -270,6 +262,7 @@ export default function EvaluationInterface() {
               <button
                 onClick={() => setShowLogModal(false)}
                 className="text-slate-400 hover:text-white"
+                aria-label="Close terminal"
               >
                 ✕
               </button>
@@ -325,7 +318,7 @@ export default function EvaluationInterface() {
               </div>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
 
             <div className="flex flex-col h-full max-h-[calc(100vh-120px)]">
