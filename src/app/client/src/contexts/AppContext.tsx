@@ -13,6 +13,7 @@ import {
 } from '@shared/types';
 import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
+import { getWsUrl, getApiUrl } from '@/config';
 
 type AppMode = 'chat' | 'evaluation';
 
@@ -133,9 +134,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         api_key: apiKey
       };
 
-      console.log('Sending request to /api/chat');
+      console.log('Sending request to /chat');
       // Call API to normalize claim
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${getApiUrl()}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,7 +265,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     try {
       // Create WebSocket connection
-      const wsUrl = `ws://localhost:8000/ws/evaluation/${sessionId}`;
+      const wsUrl = `${getWsUrl()}/ws/evaluation/${sessionId}`;
       const websocket = new WebSocket(wsUrl);
       
       websocket.onopen = () => {

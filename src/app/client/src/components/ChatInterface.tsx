@@ -30,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { ModelOption } from '@shared/types';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getApiUrl } from '@/config';
 import './scrollbar-hide.css';
 
 export default function ChatInterface() {
@@ -126,7 +127,7 @@ export default function ChatInterface() {
     setMessages(prev => [...prev, tempMessage]);
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${getApiUrl()}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
