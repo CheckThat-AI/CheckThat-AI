@@ -111,6 +111,9 @@ export default function ChatInterface() {
     };
     setMessages(prev => [...prev, userMessage]);
 
+    // Clear the input immediately after adding the user message
+    setCurrentMessage('');
+
     // Add a temporary assistant message for streaming
     const tempMessageId = (Date.now() + 1).toString();
     const tempMessage: Message = {
@@ -129,7 +132,7 @@ export default function ChatInterface() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_query: currentMessage,
+          user_query: userMessage.content,
           model: selectedModel,
           ...(selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && { api_key: apiKey })
         }),
@@ -177,7 +180,6 @@ export default function ChatInterface() {
           : msg
       ));
     }
-    setCurrentMessage('');
     textareaRef.current?.focus();
   };
 
