@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { 
   Message, 
@@ -36,16 +36,24 @@ export interface AppContextType {
   // Evaluation mode
   evaluationData: EvaluationData;
   updateEvaluationData: (data: Partial<EvaluationData>) => void;
-  submitEvaluation: () => Promise<boolean>;
   resetEvaluation: () => void;
-  evaluationSubmitted: boolean;
+  
+  // Evaluation methods
+  selectedEvalMethod: string | null;
+  setSelectedEvalMethod: (method: string | null) => void;
+  selfRefineIterations: number;
+  setSelfRefineIterations: (iterations: number) => void;
+  crossRefineIterations: number;
+  setCrossRefineIterations: (iterations: number) => void;
   
   // New evaluation features
   progress: number;
   progressStatus: 'pending' | 'processing' | 'completed' | 'error';
-  startEvaluation: () => Promise<void>;
-  checkProgress: () => Promise<number>;
+  startEvaluation: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
+  stopEvaluation: () => void;
   evaluationResults: EvaluationResults | null;
+  logMessages: string[];
+  setLogMessages: React.Dispatch<React.SetStateAction<string[]>>;
 }
 
 const defaultEvaluationData: EvaluationData = {
@@ -72,12 +80,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Free');
   const [apiKey, setApiKey] = useState('');
   const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
-  const [evaluationSubmitted, setEvaluationSubmitted] = useState(false);
+  
+  // Evaluation methods state
+  const [selectedEvalMethod, setSelectedEvalMethod] = useState<string | null>(null);
+  const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
+  const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
   
   // New state for progress tracking
   const [progress, setProgress] = useState<number>(0);
   const [progressStatus, setProgressStatus] = useState<'pending' | 'processing' | 'completed' | 'error'>('pending');
   const [evaluationResults, setEvaluationResults] = useState<EvaluationResults | null>(null);
+  const [logMessages, setLogMessages] = useState<string[]>([]);
   
   const { toast } = useToast();
 
@@ -194,64 +207,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setEvaluationData(prev => ({ ...prev, ...data }));
   };
 
-  const submitEvaluation = async (): Promise<boolean> => {
-    if (!evaluationData.file || evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0) {
-      toast({
-        title: "Missing Information",
-        description: "Please select a file, at least one model, and one prompt style.",
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    setIsLoading(true);
-    
-    try {
-      const formData = new FormData();
-      formData.append('file', evaluationData.file);
-      formData.append('model', evaluationData.selectedModels[0]);
-      formData.append('prompt_style', evaluationData.selectedPromptStyles[0]);
-      
-      const response = await fetch('/api/normalize-claims', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to submit evaluation');
-      }
-      
-      const data = await response.json();
-      
-      setEvaluationSubmitted(true);
-      toast({
-        title: "Success",
-        description: "Your evaluation has been submitted successfully.",
-        variant: "success",
-      });
-      return true;
-    } catch (error) {
-      console.error('Error submitting evaluation:', error);
-      toast({
-        title: "Error",
-        description: "Failed to submit your evaluation. Please try again.",
-        variant: "destructive",
-      });
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const resetEvaluation = () => {
     setEvaluationData(defaultEvaluationData);
-    setEvaluationSubmitted(false);
+    setSelectedEvalMethod(null);
+    setSelfRefineIterations(1);
+    setCrossRefineIterations(1);
     setProgress(0);
     setProgressStatus('pending');
+    setEvaluationResults(null);
+    setIsLoading(false); // Ensure loading state is cleared
   };
   
-  // New methods for model evaluation with progress tracking
-  const startEvaluation = async (): Promise<void> => {
+  // WebSocket for real-time evaluation updates
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [sessionId, setSessionId] = useState<string>('');
+
+  // Generate session ID on mount
+  useEffect(() => {
+    const id = Math.random().toString(36).substring(2, 15);
+    setSessionId(id);
+  }, []);
+
+  // New methods for model evaluation with progress tracking using WebSocket
+  const startEvaluation = async (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }): Promise<void> => {
+    // Validation
     if (evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0) {
       toast({
         title: "Selection Required",
@@ -261,133 +240,228 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    setProgressStatus('processing');
-    setProgress(0);
-    setIsLoading(true);
-    
-    try {
-      // Create form data for the API request
-      const formData = new FormData();
-      
-      // Add the CSV file
-      if (evaluationData.file) {
-        formData.append('file', evaluationData.file);
-      } else {
-        throw new Error('No file selected');
-      }
-      
-      // Add the request parameters
-      const requestData = {
-        model: evaluationData.selectedModels[0], // For now, we'll use the first selected model
-        prompt_style: evaluationData.selectedPromptStyles[0], // For now, we'll use the first selected prompt style
-        self_refine_iterations: 0 // Default value
-      };
-      
-      // Call the FastAPI endpoint through the proxy
-      const response = await fetch('/api/normalize-claims', {
-        method: 'POST',
-        body: formData,
-        headers: {
-          'Accept': 'application/json',
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to start evaluation');
-      }
-      
-      const data = await response.json();
-      
-      // Update the evaluation results
-      setEvaluationResults({
-        scores: [{
-          model: data.model,
-          promptStyle: data.prompt_style,
-          score: data.meteor_score
-        }],
-        timestamp: new Date()
-      });
-      
-      setProgressStatus('completed');
-      setProgress(100);
-      
-    } catch (error) {
-      console.error('Error during evaluation:', error);
-      setProgressStatus('error');
+    if (!evaluationData.file) {
       toast({
-        title: "Error",
-        description: "Failed to complete the evaluation. Please try again.",
+        title: "File Required",
+        description: "Please upload a dataset file.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
-  
-  // Check progress of running evaluation
-  const checkProgress = async (): Promise<number> => {
-    // Since our FastAPI endpoint is synchronous, we don't need to poll for progress
-    return progress;
-  };
-  
-  // Fetch evaluation results after completion
-  const fetchEvaluationResults = async () => {
-    try {
-      const response = await apiRequest('GET', '/api/evaluation-results');
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch evaluation results');
-      }
-      
-      const data: EvaluationResults = await response.json();
-      setEvaluationResults(data);
-      
-      if (data.scores.length > 0) {
-        toast({
-          title: "Results Available",
-          description: "Evaluation results are now available for viewing.",
-          variant: "default",
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching evaluation results:', error);
+    
+    if (!sessionId) {
       toast({
         title: "Error",
-        description: "Failed to fetch evaluation results. Please try again.",
+        description: "Session not initialized. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setProgressStatus('processing');
+    setProgress(0);
+    // Don't set isLoading for WebSocket evaluation since we have real-time updates
+    
+    try {
+      // Create WebSocket connection
+      const wsUrl = `ws://localhost:8000/ws/evaluation/${sessionId}`;
+      const websocket = new WebSocket(wsUrl);
+      
+      websocket.onopen = () => {
+        setLogMessages(prev => [...prev, `> Connected to evaluation service`]);
+        
+        // Calculate iterations based on selected eval method
+        const iterations = selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations :
+                          selectedEvalMethod === 'CROSS-REFINE' ? crossRefineIterations : 0;
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = () => {
+          const fileContent = reader.result as string;
+          const base64Content = fileContent.split(',')[1]; // Remove data:... prefix
+          
+          // Prepare evaluation data
+          const evaluationPayload = {
+            type: 'start_evaluation',
+            data: {
+              models: evaluationData.selectedModels,
+              prompt_styles: evaluationData.selectedPromptStyles,
+              file_data: {
+                name: evaluationData.file!.name,
+                content: base64Content
+              },
+              self_refine_iterations: iterations,
+              eval_method: selectedEvalMethod,
+              custom_prompt: evaluationData.customPrompt || null,
+              api_keys: apiKeys || {},
+              cross_refine_model: evaluationData.crossRefineModel || null
+            }
+          };
+          
+          // Send evaluation request
+          websocket.send(JSON.stringify(evaluationPayload));
+        };
+        
+        reader.readAsDataURL(evaluationData.file!);
+      };
+      
+      websocket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        
+        switch (message.type) {
+          case 'progress':
+            setProgress(message.data.percentage || 0);
+            break;
+            
+                     case 'log':
+             // Add server logs with terminal-style prefix
+             setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
+             break;
+            
+                     case 'status':
+             // Add status updates with different prefix
+             setLogMessages(prev => [...prev, `> ${message.data.message}`]);
+             if (message.data.message.includes('stopped')) {
+               setProgressStatus('error');
+             }
+             break;
+            
+          case 'complete':
+            setLogMessages(prev => [...prev, `✓ Evaluation completed successfully`]);
+            if (message.data.scores) {
+              // Convert scores to the expected format
+              const results: MeteorScore[] = Object.entries(message.data.scores).map(([key, score]) => {
+                const [model_name, prompt_style] = key.split('_');
+                return {
+                  model: model_name.replace(/_/g, '/'), // Convert back to original model name
+                  promptStyle: prompt_style.replace(/_/g, '-'),
+                  score: score as number
+                };
+              });
+              
+              setEvaluationResults({
+                scores: results,
+                timestamp: new Date()
+              });
+              
+              // Add final scores to log
+              results.forEach(result => {
+                setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
+              });
+            }
+                         setProgressStatus('completed');
+             setProgress(100);
+             websocket.close();
+            
+            toast({
+              title: "Evaluation Complete",
+              description: "Successfully completed the evaluation.",
+              variant: "default",
+            });
+            break;
+            
+                     case 'error':
+             setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
+             setProgressStatus('error');
+             websocket.close();
+            
+            toast({
+              title: "Error",
+              description: message.data.message,
+              variant: "destructive",
+            });
+            break;
+        }
+      };
+      
+             websocket.onerror = (error) => {
+         setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to evaluation service`]);
+         setProgressStatus('error');
+         
+         toast({
+           title: "Connection Error",
+           description: "Failed to connect to the evaluation service.",
+           variant: "destructive",
+         });
+       };
+      
+      websocket.onclose = () => {
+        setLogMessages(prev => [...prev, `> Disconnected from evaluation service`]);
+        setWs(null);
+      };
+      
+      setWs(websocket);
+      
+    } catch (error) {
+      setLogMessages(prev => [...prev, `✗ Failed to start evaluation: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+      setProgressStatus('error');
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start the evaluation.",
         variant: "destructive",
       });
     }
   };
 
+  // Function to stop evaluation
+  const stopEvaluation = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'stop_evaluation' }));
+      setProgressStatus('error');
+      
+      toast({
+        title: "Evaluation Stopped",
+        description: "The evaluation has been stopped.",
+        variant: "default",
+      });
+    }
+  };
+  
+
+
+  const contextValue = useMemo(() => ({
+    mode,
+    toggleMode,
+    messages,
+    setMessages,
+    isLoading,
+    selectedFile,
+    currentMessage,
+    setCurrentMessage,
+    sendMessage,
+    handleFileChange,
+    clearMessages,
+    selectedModel,
+    setSelectedModel,
+    apiKey,
+    setApiKey,
+    evaluationData,
+    updateEvaluationData,
+    resetEvaluation,
+    // Evaluation methods
+    selectedEvalMethod,
+    setSelectedEvalMethod,
+    selfRefineIterations,
+    setSelfRefineIterations,
+    crossRefineIterations,
+    setCrossRefineIterations,
+    // New properties
+    progress,
+    progressStatus,
+    startEvaluation,
+    stopEvaluation,
+    evaluationResults,
+    logMessages,
+    setLogMessages
+  }), [
+    mode, messages, isLoading, selectedFile, currentMessage, selectedModel, apiKey,
+    evaluationData, selectedEvalMethod, selfRefineIterations, crossRefineIterations,
+    progress, progressStatus, evaluationResults, logMessages
+  ]);
+
   return (
-    <AppContext.Provider value={{
-      mode,
-      toggleMode,
-      messages,
-      setMessages,
-      isLoading,
-      selectedFile,
-      currentMessage,
-      setCurrentMessage,
-      sendMessage,
-      handleFileChange,
-      clearMessages,
-      selectedModel,
-      setSelectedModel,
-      apiKey,
-      setApiKey,
-      evaluationData,
-      updateEvaluationData,
-      submitEvaluation,
-      resetEvaluation,
-      evaluationSubmitted,
-      // New properties
-      progress,
-      progressStatus,
-      startEvaluation,
-      checkProgress,
-      evaluationResults
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );
