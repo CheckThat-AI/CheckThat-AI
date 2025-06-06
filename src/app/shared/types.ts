@@ -17,12 +17,13 @@ export type ModelOption = 'grok-3-latest' | 'claude-3.7-sonnet-latest' | 'gpt-4o
 export type PromptStyleOption = 'Zero-shot' | 'Few-shot' | 'Zero-shot-CoT' | 'Few-shot-CoT';
 
 // Evaluation form data
-export interface EvaluationData {
+export type EvaluationData = {
   file: File | null;
   selectedModels: ModelOption[];
   selectedPromptStyles: PromptStyleOption[];
-  customPrompt?: string;
-}
+  customPrompt?: string | null;
+  crossRefineModel?: ModelOption | null;
+};
 
 // API response types
 export interface NormalizationResponse {
