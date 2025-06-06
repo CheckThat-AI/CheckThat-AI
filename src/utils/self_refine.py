@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple, Optional
 from .schema import Feedback
 from .get_model_response import get_model_response
 from .prompts import sys_prompt, instruction, chain_of_thought_trigger, few_shot_prompt, few_shot_CoT_prompt, feedback_prompt, feedback_sys_prompt, refine_sys_prompt
@@ -26,7 +26,7 @@ def format_feedback_for_prompt(feedback: Feedback) -> str:
     
     return "\n".join(formatted_parts)
 
-def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], self_refine_iters: int) -> str:
+def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], refine_iters: int, cross_refine_model: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
     """
     This function takes a list of models, a user prompt, and a list of prompt styles,
     and returns the generated response using the first model and prompt style in the lists.
@@ -35,14 +35,18 @@ def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], s
         models (List[str]): List of model identifiers to use.
         user_prompt (str): The user's input prompt with the task query.
         prompt_styles (List[str]): List of system prompts to guide the model's response.
+        self_refine_iters (int): Number of self-refinement iterations.
+        cross_refine_model (Optional[str]): The model to use for cross-refinement feedback generation.
 
     Returns:
-        str: The generated response from the model.
+        Tuple[str, List[Dict[str, Any]]]: The final refined claim and a list of logs generated during the process.
     """
     # Use the first model and prompt style in the lists
     model = models[0]
     prompt_style = prompt_styles[0]
     
+    logs: List[Dict[str, Any]] = []
+
     if prompt_style == "Zero-shot":
         user_prompt = f"{instruction} {user_prompt}"
     elif prompt_style == "Zero-shot-CoT":
@@ -60,23 +64,24 @@ def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], s
     
     initial_claim = get_model_response(model, user_prompt, sys_prompt, "init")
  
-    print(f"\n\nInitial Claim: {initial_claim.claim}")
-    
-    current_claim = initial_claim
+    current_claim = initial_claim.claim
+    logs.append({"message": f"Initial Claim: {initial_claim.claim}", "type": "initial_claim"})
 
     
-    for i in range(self_refine_iters):
-        print(f"\n-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Self-refine Iteration {i+1} of {self_refine_iters} -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+")
+    for i in range(refine_iters):
+        logs.append({"message": f"Self-refine Iteration {i+1} of {refine_iters}", "type": "iteration_start"})
         feedback_user_prompt = f"{user_prompt}\nResponse/Normalized Claim: {current_claim}\n{feedback_prompt}"
     
-        feedback = get_model_response(model, feedback_user_prompt, feedback_sys_prompt, "feedback")
+        # Use cross_refine_model for feedback if provided, otherwise use the main model
+        feedback_generation_model = cross_refine_model if cross_refine_model else model
+        logs.append({"message": f"Using feedback model: {feedback_generation_model}", "type": "debug_feedback_model"})
+        feedback = get_model_response(feedback_generation_model, feedback_user_prompt, feedback_sys_prompt, "feedback")
         
-        print("\n=========================== Feedback ==================================")
-
-        print('\n'.join(f"{k}: {v}" for k, v in feedback.model_dump().items()))
+        logs.append({"message": "Feedback: ", "type": "feedback_start"})
+        logs.extend([{"message": f"{k}: {v}", "type": "feedback_detail"} for k, v in feedback.model_dump().items()])
+        logs.append({"message": "End of Feedback", "type": "feedback_end"})
         
         feedback_text = format_feedback_for_prompt(feedback)
-        print("\n======================= End of Feedback ===============================")
         refine_user_prompt = f"""
             ## Original Query
             {user_prompt}
@@ -91,10 +96,11 @@ def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], s
             Refine the current response based on the feedback to improve its accuracy, verifiability, and overall quality.
         """
         refined_claim = get_model_response(model, refine_user_prompt, refine_sys_prompt, "refine")
-        print(f"\nRefined Claim: {refined_claim.claim}\n")
+        logs.append({"message": f"Refined Claim: {refined_claim.claim}", "type": "refined_claim"})
         current_claim = refined_claim.claim
-        print(f"-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ End of Self-refine Iteration {i+1} of {self_refine_iters} -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-\n")
+        logs.append({"message": f"End of Self-refine Iteration {i+1} of {refine_iters}", "type": "iteration_end"})
         
-    return current_claim
+    logs.append({"message": f"Final Claim: {current_claim}", "type": "final_claim"})
+    return current_claim, logs
     
     
