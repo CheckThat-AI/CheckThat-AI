@@ -234,7 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0) {
       toast({
         title: "Selection Required",
-        description: "Please select at least one model and one prompt style.",
+        description: "Please select one model and one prompt style.",
         variant: "destructive",
       });
       return;
@@ -313,18 +313,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setProgress(message.data.percentage || 0);
             break;
             
-                     case 'log':
-             // Add server logs with terminal-style prefix
-             setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
-             break;
+          case 'log':
+            // Add server logs with terminal-style prefix
+            setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
+            break;
             
-                     case 'status':
-             // Add status updates with different prefix
-             setLogMessages(prev => [...prev, `> ${message.data.message}`]);
-             if (message.data.message.includes('stopped')) {
-               setProgressStatus('error');
-             }
-             break;
+          case 'log_batch':
+            // Handle batched log messages
+            if (message.data.messages && Array.isArray(message.data.messages)) {
+              const newLogMessages = message.data.messages.map((logData: any) => `$ ${logData.message}`);
+              setLogMessages(prev => [...prev, ...newLogMessages]);
+            }
+            break;
+            
+          case 'status':
+            // Add status updates with different prefix
+            setLogMessages(prev => [...prev, `> ${message.data.message}`]);
+            if (message.data.message.includes('stopped')) {
+              setProgressStatus('error');
+            }
+            break;
             
           case 'complete':
             setLogMessages(prev => [...prev, `✓ Evaluation completed successfully`]);
@@ -360,10 +368,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
             break;
             
-                     case 'error':
-             setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
-             setProgressStatus('error');
-             websocket.close();
+          case 'error':
+            setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
+            setProgressStatus('error');
+            websocket.close();
             
             toast({
               title: "Error",
@@ -374,16 +382,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       };
       
-             websocket.onerror = (error) => {
-         setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to evaluation service`]);
-         setProgressStatus('error');
-         
-         toast({
-           title: "Connection Error",
-           description: "Failed to connect to the evaluation service.",
-           variant: "destructive",
-         });
-       };
+      websocket.onerror = (error) => {
+        setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to evaluation service`]);
+        setProgressStatus('error');
+        
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to the evaluation service.",
+          variant: "destructive",
+        });
+      };
       
       websocket.onclose = () => {
         setLogMessages(prev => [...prev, `> Disconnected from evaluation service`]);
