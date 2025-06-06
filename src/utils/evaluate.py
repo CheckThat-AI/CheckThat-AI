@@ -3,10 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from typing import Any, Dict, List, Tuple
-import concurrent.futures
-from concurrent.futures import ProcessPoolExecutor
-from itertools import product
+from typing import Any, Dict, List, Tuple, Optional
 import re
 
 import nltk
@@ -24,23 +21,7 @@ def clean_filename(text: str) -> str:
     """Convert text to a valid filename by removing invalid characters"""
     return re.sub(r'[\\/*?:"<>|]', "_", text)
 
-def process_item(args: Tuple[str, str, pd.Series, int]) -> Tuple[float, str, str, str, str]:
-    """
-    Process a single item with specific model and prompt style
-    Returns score, response, label, model and prompt_style as a tuple
-    """
-    model, prompt_style, item, self_refine_iters = args
-    if item['post'] == "" or np.isnan(item['normalized claim']):
-        print(f"Skipping item: {item['post']} and {item['normalized claim']}")
-        return (0.0, "", "", model, prompt_style)
-    print(f"Processing item: {item['post']} and {item['normalized claim']}")
-    response = self_refine([model], item['post'], [prompt_style], self_refine_iters)
-    response_tokens = word_tokenize(response)
-    label_tokens = word_tokenize(item['normalized claim'])
-    score = meteor_score([response_tokens], label_tokens)
-    return (score, response, item['normalized claim'], model, prompt_style)
-
-def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd.DataFrame, self_refine_iters: int) -> Dict[str, float]:
+def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd.DataFrame, refine_iters: int, progress_callback=None, stop_event=None, cross_refine_model: Optional[str] = None) -> Dict[str, float]:
     # Dictionary to store results by model and prompt style
     results_by_combination: Dict[str, Dict[str, List]] = {}
     
@@ -49,74 +30,129 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
     # Create output directory if it doesn't exist
     os.makedirs(results_dir, exist_ok=True)
     
-    # Check if we need to use multi-threading
-    use_threading = len(models) > 1 or len(prompt_styles) > 1
+    # Track progress per combination
+    total_items_per_combo: Dict[str, int] = {}
+    completed_items_per_combo: Dict[str, int] = {}
+    last_reported_progress: Dict[str, int] = {}
     
-    if use_threading:
-        print(f"Using threading for {len(models)} models: {models} and {len(prompt_styles)} prompt styles: {prompt_styles}")
-        # Create all combinations of models, and prompt_styles
-        combinations = []
-        for model, prompt_style in product(models, prompt_styles):
-            for _, item in input_data.iterrows():
-                combinations.append((model, prompt_style, item, self_refine_iters))
+    # Since frontend only allows one model and one prompt style
+    model = models[0] if models else ""
+    prompt_style = prompt_styles[0] if prompt_styles else ""
+    combo_key = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
+    
+    results_by_combination[combo_key] = {
+        'scores': [],
+        'responses': [],
+        'labels': [],
+        'model': [],
+        'prompt_style': []
+    }
+    
+    total_items = len(input_data)
+    if progress_callback:
+        progress_callback("status", {"message": f"Processing {total_items} items...", "progress": 0})
+    
+    # Initialize total items per combo (single combo)
+    combo_key_single = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
+    total_items_per_combo[combo_key_single] = total_items
+    completed_items_per_combo[combo_key_single] = 0
+    last_reported_progress[combo_key_single] = -1 # Use -1 to ensure first report at 0%
+
+    # Use a proper counter instead of relying on pandas index
+    processed_count = 0
+    
+    for index, item in tqdm(input_data.iterrows(), total=len(input_data), desc="Extracting claims and evaluating with METEOR"):
+        # Increment the counter at the beginning of each iteration
+        processed_count += 1
         
-        with ProcessPoolExecutor(max_workers=min(12, len(combinations))) as executor:
-            results = list(tqdm(
-                executor.map(process_item, combinations),
-                total=len(combinations),
-                desc="Processing with multiple threads"
-            ))
-            
-        # Organize results by model and prompt style combination
-        for score, response, label, model, prompt_style in results:
-            combo_key = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
-            
-            if combo_key not in results_by_combination:
-                results_by_combination[combo_key] = {
-                    'scores': [],
-                    'responses': [],
-                    'labels': [],
-                    'model': [],
-                    'prompt_style': []
-                }
-                
-            results_by_combination[combo_key]['scores'].append(score)
-            results_by_combination[combo_key]['responses'].append(response)
-            results_by_combination[combo_key]['labels'].append(label)
+        # Check for stop signal
+        if stop_event and stop_event.is_set():
+            print("Evaluation stopped by user")
+            if progress_callback:
+                progress_callback("status", {"message": "Evaluation stopped by user"})
+            return {}
+        
+        # Check for empty/invalid data more safely
+        post_empty = str(item['post']).strip() == ""
+        normalized_claim = item['normalized claim']
+        
+        # Check if normalized claim is invalid (NaN, None, empty string, etc.)
+        claim_invalid = False
+        try:
+            if pd.isna(normalized_claim) or str(normalized_claim).strip() in ["", "nan", "NaN", "None"]:
+                claim_invalid = True
+        except Exception:
+            claim_invalid = True
+        
+        if post_empty or claim_invalid:
+            print(f"Skipping item: {item['post']} and {item['normalized claim']}")
+            results_by_combination[combo_key]['scores'].append(0.0)
+            results_by_combination[combo_key]['responses'].append(str(item['post']))
+            results_by_combination[combo_key]['labels'].append(str(item['post']))
             results_by_combination[combo_key]['model'].append(model)
             results_by_combination[combo_key]['prompt_style'].append(prompt_style)
-    else:
-        model = models[0] if models else ""
-        prompt_style = prompt_styles[0] if prompt_styles else ""
-        combo_key = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
+        else:
+            if progress_callback:
+                progress_callback("log", {"message": f"Processing item {processed_count}/{total_items}: {item['post'][:50]}...", "model": model, "prompt_style": prompt_style, "type": "item_processed"})
+            
+            response_text, logs_from_self_refine = self_refine(models, item['post'], prompt_styles, refine_iters, cross_refine_model)
+
+            # Send only important logs from self_refine to reduce WebSocket overhead
+            if progress_callback and logs_from_self_refine:
+                important_log_types = ["initial_claim", "final_claim", "item_error", "debug_feedback_model"]
+                for log_entry in logs_from_self_refine:
+                    log_type = log_entry.get("type", "")
+                    # Only send important logs to client, but print all logs to server console
+                    if log_type in important_log_types:
+                        try:
+                            progress_callback("log", log_entry)
+                        except Exception as e:
+                            print(f"Error in progress callback for log entry from self_refine: {e}")
+                    # Always print to server console for debugging
+                    # print(f"[SELF_REFINE] {log_entry.get('message', '')}")
+
+            response_tokens = word_tokenize(response_text)
+            label_tokens = word_tokenize(str(normalized_claim))
+            score = meteor_score([response_tokens], label_tokens)
+            
+            results_by_combination[combo_key]['scores'].append(score)
+            results_by_combination[combo_key]['responses'].append(response_text)
+            results_by_combination[combo_key]['labels'].append(str(normalized_claim))
+            results_by_combination[combo_key]['model'].append(model)
+            results_by_combination[combo_key]['prompt_style'].append(prompt_style)
         
-        results_by_combination[combo_key] = {
-            'scores': [],
-            'responses': [],
-            'labels': [],
-            'model': [],
-            'prompt_style': []
-        }
+        # Update per-combination progress and send log if changed significantly
+        combo_key_current = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
+        completed_items_per_combo[combo_key_current] += 1
         
-        for index, item in tqdm(input_data.iterrows(), total=len(input_data), desc="Extracting claims and evaluating with METEOR"):
-            if item['post'] == "" or (isinstance(item['normalized claim'], float) and np.isnan(item['normalized claim'])):
-                print(f"Skipping item: {item['post']} and {item['normalized claim']}")
-                results_by_combination[combo_key]['scores'].append(0.0)
-                results_by_combination[combo_key]['responses'].append(item['post'])
-                results_by_combination[combo_key]['labels'].append(item['post'])
-                results_by_combination[combo_key]['model'].append(model)
-                results_by_combination[combo_key]['prompt_style'].append(prompt_style)
-            else:
-                response = self_refine(models, item['post'], prompt_styles, self_refine_iters)
-                response_tokens = word_tokenize(response)
-                label_tokens = word_tokenize(item['normalized claim'])
-                score = meteor_score([response_tokens], label_tokens)
-                
-                results_by_combination[combo_key]['scores'].append(score)
-                results_by_combination[combo_key]['responses'].append(response)
-                results_by_combination[combo_key]['labels'].append(item['normalized claim'])
-                results_by_combination[combo_key]['model'].append(model)
-                results_by_combination[combo_key]['prompt_style'].append(prompt_style)
+        # Calculate progress percentage once and use it for both UI and logs
+        progress_percentage = round((processed_count / total_items) * 100, 1)
+        current_combo_percentage = int(progress_percentage)  # Convert to int for comparison
+        
+        if current_combo_percentage > last_reported_progress[combo_key_current]:
+            if progress_callback:
+                try:
+                    progress_callback("log", {
+                        "message": f"Progress: {progress_percentage}%",
+                        "model": model,
+                        "prompt_style": prompt_style,
+                        "type": "combo_progress"
+                    })
+                except Exception as e:
+                    print(f"Error in progress callback for combo progress: {e}")
+            last_reported_progress[combo_key_current] = current_combo_percentage
+         
+        # Send overall progress update using the same calculation as tqdm
+        if progress_callback:
+            try:
+                # Use the same progress_percentage calculated above
+                progress_callback("progress", {
+                    "current": processed_count, 
+                    "total": total_items, 
+                    "percentage": progress_percentage
+                })
+            except Exception as e:
+                print(f"Error in progress callback: {e}")
     
     # Dictionary to store the average score for each combination
     combination_scores = {}
