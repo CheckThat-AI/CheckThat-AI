@@ -1,117 +1,256 @@
 # Claim Extraction and Normalization
 
-This project is a part of <a href="https://checkthat.gitlab.io/clef2025/task2/" rel="noopener nofollow ugc">CLEF-CheckThat! Lab's Task2 (2025)</a>. Given a noisy, unstructured social media post, the task is to simplify it into a concise form.
-This is a text generation task in which systems have to generate the normlized claims for the given social media posts.
+This project is a part of <a href="https://checkthat.gitlab.io/clef2025/task2/" rel="noopener nofollow ugc">CLEF-CheckThat! Lab's Task2 (2025)</a>. Given a noisy, unstructured social media post, the task is to simplify it into a concise form. This is a text generation task in which systems have to generate the normalized claims for the given social media posts.
+
+## 🌐 Live Demo
+
+- **Web Application**: [https://nikhil-kadapala.github.io/clef2025-checkthat-lab-task2/](https://nikhil-kadapala.github.io/clef2025-checkthat-lab-task2/)
+- **API Backend**: [https://claim-normalization.onrender.com/](https://claim-normalization.onrender.com/)
 
 ## Project Structure
 
 ```
-clef-2025-checkthat-lab-task2
-├── src
-│   ├── claim_norm.py               # Main entry point
-│   └── utils                       # Package containing helper functions for claim normalization logic
-│       ├── __init__.py             # Package initialization
-│       ├── evaluate.py             # Logic for evaluating the generated claims
-│       ├── self_refine.py          # Logic for the self-refine stage
-│       ├── get_model_response.py   # Logic to query the model using the API
-│       ├── gpt.py                  # helper function to get the response from gpt-4.1-nano model using OpenAI API
-│       ├── llama.py                # helper function to get the response from llama-3.3-70B model using together.ai API
-│       ├── gemini.py               # helper function to get the response from gemini-2.0-flash model using gemini API
-│       └── grok.py                 # helper function to get the response from xAI's grok3 model using OpenAI API
-├── data
-│   └── dev.csv                     # Development dataset for testing
-├── requirements.txt                # Project dependencies
-└── README.md                       # Project documentation
+clef2025-checkthat-lab-task2/
+├── src/
+│   ├── api/                        # FastAPI backend (deployed to Render)
+│   │   └── main.py                 # Main API server with WebSocket support
+│   ├── app/                        # Full-stack web application
+│   │   ├── client/                 # React frontend application
+│   │   │   ├── src/
+│   │   │   │   ├── components/     # React components
+│   │   │   │   ├── contexts/       # React contexts
+│   │   │   │   ├── lib/           # Utility libraries
+│   │   │   │   └── pages/         # Page components
+│   │   │   └── index.html         # Main HTML template
+│   │   ├── server/                 # Development server (Express + Vite)
+│   │   ├── shared/                 # Shared types and utilities
+│   │   │   ├── types.ts           # TypeScript type definitions
+│   │   │   ├── prompts.ts         # Prompt templates
+│   │   │   └── schema.ts          # Database schema
+│   │   ├── vite.config.ts         # Vite configuration
+│   │   └── package.json           # Frontend dependencies
+│   ├── utils/                      # ML utilities and model interfaces
+│   │   ├── evaluate.py            # Evaluation logic with METEOR scoring
+│   │   ├── self_refine.py         # Self-refinement algorithms
+│   │   ├── get_model_response.py  # Model API orchestration
+│   │   ├── prompts.py             # Python prompt templates
+│   │   ├── gpt.py                 # OpenAI GPT integration
+│   │   ├── llama.py               # Llama model integration
+│   │   ├── claude.py              # Anthropic Claude integration
+│   │   ├── gemini.py              # Google Gemini integration
+│   │   └── grok.py                # xAI Grok integration
+│   ├── data/                       # Dataset results and cache
+│   └── claim_norm.py              # CLI tool (legacy interface)
+├── data/                          # Main datasets
+│   ├── dev.csv                    # Development dataset
+│   ├── test.csv                   # Test dataset
+│   ├── dev_data.jsonl             # JSONL format development data
+│   └── dev_data_fixed.jsonl       # Corrected development data
+├── docs/                          # Production build (GitHub Pages)
+├── requirements.txt               # Python dependencies
+└── README.md                      # Project documentation
 ```
 
-## Setup Instructions
+## 🚀 Features
 
-1. **Clone the repository:**
-   ```bash 
-   git clone <repository-url>
-   cd src
-   ```
+### Web Application
+- **Interactive Chat Interface**: Real-time claim normalization with streaming responses
+- **Batch Evaluation**: Upload datasets for comprehensive evaluation with multiple models
+- **Model Support**: GPT-4, Claude, Gemini, Llama, and Grok models
+- **Real-time Progress**: WebSocket-based live evaluation tracking
+- **Self-Refine & Cross-Refine**: Advanced refinement algorithms
+- **METEOR Scoring**: Automatic evaluation with detailed metrics
+- **Modern UI**: Responsive design with dark theme
 
-2. **Create a virtual environment:**
-   ```bash 
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-   ```
+### API Features
+- **RESTful Endpoints**: Clean API for claim normalization
+- **WebSocket Support**: Real-time evaluation progress updates
+- **Multiple Models**: Support for 8+ AI models
+- **Streaming Responses**: Efficient real-time text generation
+- **CORS Configured**: Ready for cross-origin requests
 
-3. **Install the required dependencies:**
-   ```bash
-   pip install -r requirements.txt  
-   ```
-   Use `uv pip install -r requirements.txt` for faster installation if you already have uv installed. 
-   
-   If not, run `pip install uv` first.
+## 📋 Prerequisites
 
-4. **Set up environment variables:**
-Set the API keys for the model of your choice. This code works with the APIs of OpenAI, Gemini, Grok, and Together.ai
+- **Node.js** (v18 or higher)
+- **Python** (v3.8 or higher)
+- **API Keys** for chosen models (OpenAI, Anthropic, Google AI, xAI)
 
-      ***Linux/macOS***
-      ```bash 
-      export API_KEY="xxxxxxxx"
-      ```
-      ***Windows*** 
-      ```bash
-      $env:API_KEY="xxxxxxxxx"
-      ```
-## Usage
+## 🛠️ Setup Instructions
 
-To run the code with default values for the baseline condition(without the self-refine step), execute the following command:
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd clef2025-checkthat-lab-task2
+```
+
+### 2. Backend Setup
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+# Or use uv for faster installation:
+# pip install uv && uv pip install -r requirements.txt
+
+# Set environment variables
+# Linux/macOS:
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GEMINI_API_KEY="your-gemini-key"
+export GROQ_API_KEY="your-grok-key"
+
+# Windows:
+$env:OPENAI_API_KEY="your-openai-key"
+$env:ANTHROPIC_API_KEY="your-anthropic-key"
+$env:GEMINI_API_KEY="your-gemini-key"
+$env:GROQ_API_KEY="your-grok-key"
+```
+
+### 3. Frontend Setup
+```bash
+cd src/app
+npm install
+```
+
+## 🖥️ Usage
+
+### Web Application (Recommended)
+
+#### Development Mode
+```bash
+# Terminal 1: Start the backend
+cd src/api
+python main.py
+
+# Terminal 2: Start the frontend
+cd src/app
+npm run dev
+```
+
+Visit `http://localhost:5173` to access the web application.
+
+#### Production Build
+```bash
+cd src/app
+npm run deploy
+```
+
+### API Usage
+
+#### Start the API Server
+```bash
+cd src/api
+python main.py
+```
+
+#### Example API Call
+```bash
+curl -X POST "http://localhost:8000/chat" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_query": "The government is hiding something from us!",
+    "model": "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+  }'
+```
+
+### CLI Tool (Legacy)
 
 ```bash
-python claim_norm.py 
+# Default usage (Llama 3.3 70B, Zero-shot)
+python src/claim_norm.py
+
+# Custom configuration
+python src/claim_norm.py -m OpenAI -p Zero-Shot-CoT -it 1
+
+# Help
+python src/claim_norm.py -h
 ```
-This command runs the code with together.ai's API using the free version of Llama-3.3-70B
 
-To choose model, prompt style, and number of self-refine iterations, run the below command
-```bash
-python claim_norm.py -m OpenAI -p Zero-Shot -it 1
+## 🌐 Deployment
+
+### Frontend (GitHub Pages)
+The frontend is automatically deployed to GitHub Pages from the `docs/` directory.
+
+1. Build the frontend: `npm run deploy`
+2. Commit and push changes
+3. GitHub Pages serves from `/docs` folder
+
+### Backend (Render)
+The FastAPI backend is deployed to Render.
+
+**Start Command**: `uvicorn src.api.main:app --host 0.0.0.0 --port $PORT`
+
+**Environment Variables**:
+- `ENV_TYPE=prod`
+- `OPENAI_API_KEY=your-key`
+- `ANTHROPIC_API_KEY=your-key`
+- `GEMINI_API_KEY=your-key`
+- `GROK_API_KEY=your-key`
+
+## 🤖 Supported Models
+
+| Provider | Model | Free Tier |
+|----------|-------|-----------|
+| Together.ai | Llama 3.3 70B | ✅ |
+| OpenAI | GPT-4o, GPT-4.1 | ❌ |
+| Anthropic | Claude 3.7 Sonnet | ❌ |
+| Google | Gemini 2.5 Pro/Flash | ❌ |
+| xAI | Grok 3 | ❌ |
+
+## 📊 Evaluation Methods
+
+- **Zero-shot**: Direct claim normalization
+- **Few-shot**: Example-based learning
+- **Zero-shot-CoT**: Chain-of-thought reasoning
+- **Few-shot-CoT**: Examples with reasoning
+- **Self-Refine**: Iterative improvement
+- **Cross-Refine**: Multi-model refinement
+
+## 🧪 Example Output
+
 ```
-This will run the code using OpenAI API to extract normalized claims using GPT-4.1-nano with one iteration of the self-refine step.
+Initial Claim: "The government is hiding something from us!"
 
-Once the program starts running, you will see the output that looks something like below:
+Normalized Claim: "Government transparency concerns have been raised by citizens regarding public information access."
 
+METEOR Score: 0.847
 ```
-Extracting claims and evaluating with METEOR: 0%|                                         | 0/1 [00:00<?, ?it/s]
 
-Initial Claim: Trophy hunting is horrific.
+## 🔧 Development
 
--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Self-refine Iteration 1 of 1 -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+### Project Architecture
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS
+- **Backend**: FastAPI + WebSocket + Streaming
+- **Evaluation**: METEOR scoring with pandas/numpy
+- **Models**: Multiple AI providers with unified interface
 
-=========================== Feedback ==================================
+### Code Quality
+- TypeScript for type safety
+- ESLint + Prettier for code formatting
+- Python type hints
+- Error handling and logging
 
-Feedback: {
-   'verifiability': ['2', 'The response lacks specific, quantifiable evidence or credible sources to support the claim that trophy hunting is horrific.'], 
-   'false_likelihood': ['6', 'The response contains an emotive statement without providing context or facts, making it potentially misleading or false.'], 
-   'public_interest': ['8', 'The topic of trophy hunting is of significant public interest and relevance, particularly among animal welfare and conservation groups.'], 
-   'potential_harm': ['4', 'The response may cause emotional distress or offense to some individuals, but it does not promote hate speech or violence.'], 
-   'check_worthiness': ['9', 'The response requires fact-checking to verify the claims and ensure that the information is accurate and reliable.']
-}
+## 🤝 Contributing
 
-======================= End of Feedback ===============================
+Contributions are welcome! Please:
 
-Refined Claim: Trophy hunting has raised concerns among animal welfare and conservation groups due to its potential impact on wildlife populations and animal welfare.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
--+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ End of Self-refine Iteration 1 of 1 -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
-
-Extracting claims and evaluating with METEOR: 100%|██████████████████████████████████████████| 1/1 [00:39<00:00, 39.96s/it]
-
-Average METEOR Score: {'Llama_Zero-Shot': np.float64(0.02293577981651376)}
-```
-***Go to src/utils/self_refine.py to comment the print statements to make the code run faster when evaluating a large dataset***
-
-## Help
-Run the below command to list the accepted model names and prompt styles.
-```bash
-python cliam_norm.py -h
-```
-## Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
-
-## License
+## 📄 License
 
 This project is licensed under the MIT License. See the LICENSE file for more details.
+
+## 📚 Citation
+
+If you use this project in your research, please cite:
+
+```bibtex
+@misc{nkadapala-clef2025-checkthat-task2,
+  title={Claim Extraction and Normalization for CLEF-CheckThat! Lab Task 2},
+  author={Nikhil Kadapala},
+  year={2025},
+  url={https://github.com/your-username/clef2025-checkthat-lab-task2}
+}
+```
