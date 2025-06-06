@@ -8,8 +8,7 @@ import { ModelOption, PromptStyleOption } from '@shared/types';
 import { Play, PaperclipIcon, FileTextIcon, FileJsonIcon, FileSpreadsheetIcon } from 'lucide-react';
 import EvaluationResultsComponent from './EvaluationResults';
 import { motion } from 'framer-motion';
-import { defaultPrompts } from '@shared/prompts';
-import { sys_prompt } from '@shared/prompts';
+import { defaultPrompts, sys_prompt } from '@shared/prompts';
 import { useToast } from '@/hooks/use-toast';
 import { isValidFileType } from '@/lib/utils';
 import {
@@ -26,6 +25,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import './scrollbar-hide.css';
+
+// Add CSS for hiding scrollbars
+const scrollbarStyles = `
+  .custom-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .custom-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+`;
 
 // Function to get the appropriate icon based on file extension
 const getFileIcon = (fileName: string) => {
@@ -50,22 +60,52 @@ export default function EvaluationInterface() {
     progress,
     progressStatus,
     startEvaluation,
-    evaluationResults
+    evaluationResults,
+    selectedEvalMethod,
+    setSelectedEvalMethod,
+    selfRefineIterations,
+    setSelfRefineIterations,
+    crossRefineIterations,
+    setCrossRefineIterations,
+    stopEvaluation,
+    logMessages,
+    setLogMessages
   } = useAppContext();
   
   const resultsRef = useRef<HTMLDivElement>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptStyleOption | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
-  const [selectedEvalMethod, setSelectedEvalMethod] = useState<string | null>(null);
-  const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
-  const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
   const [showSelfRefineInput, setShowSelfRefineInput] = useState(false);
   const [showCrossRefineInput, setShowCrossRefineInput] = useState(false);
+  
+  // API Key states
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+  const [anthropicApiKey, setAnthropicApiKey] = useState('');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
+  const [grokApiKey, setGrokApiKey] = useState('');
+  
   const { toast } = useToast();
   
+  // Helper functions to determine which API keys are needed
+  const getSelectedModelProviders = () => {
+    const providers = new Set();
+    evaluationData.selectedModels.forEach(model => {
+      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(model)) {
+        providers.add('openai');
+      } else if (['claude-3-7-sonnet-latest'].includes(model)) {
+        providers.add('anthropic');
+      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(model)) {
+        providers.add('gemini');
+      } else if (['grok-3-latest'].includes(model)) {
+        providers.add('grok');
+      }
+    });
+    return providers;
+  };
+  
   const modelOptions = [
-    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Fre', label: 'Llama 3.3 70B' },
+    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B' },
     { value: 'claude-3-7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
     { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
     { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },
@@ -115,28 +155,10 @@ export default function EvaluationInterface() {
 
   // --- Output Log Modal State and Logic ---
   const [showLogModal, setShowLogModal] = useState(false);
-  const [logMessages, setLogMessages] = useState<string[]>([]);
   const logRef = useRef<HTMLDivElement>(null);
 
-  // Capture console.log and console.error
-  useEffect(() => {
-    const origLog = console.log;
-    const origErr = console.error;
-    function captureLog(...args: any[]) {
-      setLogMessages(prev => [...prev, `[LOG] ${args.join(' ')}`]);
-      origLog(...args);
-    }
-    function captureErr(...args: any[]) {
-      setLogMessages(prev => [...prev, `[ERROR] ${args.join(' ')}`]);
-      origErr(...args);
-    }
-    console.log = captureLog;
-    console.error = captureErr;
-    return () => {
-      console.log = origLog;
-      console.error = origErr;
-    };
-  }, []);
+  // No longer capturing console.log to reduce noise
+  // Only server-side logs will be displayed
 
   // Auto-scroll log modal to bottom
   useEffect(() => {
@@ -149,7 +171,7 @@ export default function EvaluationInterface() {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
-      if (!target.closest('.relative')) {
+      if (!target.closest('[data-eval-method]')) {
         setShowSelfRefineInput(false);
         setShowCrossRefineInput(false);
       }
@@ -161,17 +183,90 @@ export default function EvaluationInterface() {
     }
   }, [showSelfRefineInput, showCrossRefineInput]);
 
+  // Handle Escape key for modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showLogModal) {
+        setShowLogModal(false);
+      }
+    };
+
+    if (showLogModal) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showLogModal]);
+
+  // Validate API keys before starting evaluation
+  const validateApiKeys = () => {
+    const selectedProviders = getSelectedModelProviders();
+    const missingKeys = [];
+    
+    if (selectedProviders.has('openai') && !openaiApiKey.trim()) {
+      missingKeys.push('OpenAI');
+    }
+    if (selectedProviders.has('anthropic') && !anthropicApiKey.trim()) {
+      missingKeys.push('Anthropic');
+    }
+    if (selectedProviders.has('gemini') && !geminiApiKey.trim()) {
+      missingKeys.push('Gemini');
+    }
+    if (selectedProviders.has('grok') && !grokApiKey.trim()) {
+      missingKeys.push('Grok');
+    }
+
+    if (missingKeys.length > 0) {
+      toast({
+        title: "API Keys Required",
+        description: `Please provide API keys for: ${missingKeys.join(', ')}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+    return true;
+  };
+
+  const handleStartEvaluation = () => {
+    if (!validateApiKeys()) return;
+    
+    // Add validation for Cross-Refine model
+    if (selectedEvalMethod === 'CROSS-REFINE' && !evaluationData.crossRefineModel) {
+      toast({
+        title: "Cross-Refine Model Required",
+        description: "Please select a model for cross-refinement.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Pass API keys to startEvaluation
+    const apiKeys = {
+      openai: openaiApiKey,
+      anthropic: anthropicApiKey,
+      gemini: geminiApiKey,
+      grok: grokApiKey
+    };
+    
+    startEvaluation(apiKeys);
+  };
+
   return (
-    <div>
+    <div className="flex-1 flex flex-col h-full">
+      <style>{scrollbarStyles}</style>
 
       {showLogModal && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-60 overflow-auto" onClick={() => setShowLogModal(false)}>
+        <div 
+          className="fixed inset-0 z-50 bg-black bg-opacity-60 overflow-auto" 
+          onClick={() => setShowLogModal(false)}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
           <div 
             className="bg-gray-900 rounded-lg shadow-lg w-full max-w-4xl mx-auto my-8 p-6 relative flex flex-col"
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg text-white font-bold">Client Output Log</h3>
+              <h3 className="text-lg text-white font-bold">Evaluation Terminal</h3>
               <button
                 onClick={() => setShowLogModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -181,7 +276,7 @@ export default function EvaluationInterface() {
             </div>
             <div
               ref={logRef}
-              className="bg-black text-green-300 font-mono text-xs rounded p-4 overflow-y-auto border border-slate-700 flex-1"
+              className="bg-black text-green-300 font-mono text-xs rounded p-4 overflow-y-auto border border-slate-700 flex-1 custom-scrollbar"
               style={{ 
                 minHeight: '200px',
                 maxHeight: '70vh',
@@ -191,10 +286,10 @@ export default function EvaluationInterface() {
               }}
             >
               {logMessages.length === 0 ? (
-                <span className="text-slate-400">No output yet. Start the evaluation to see logs here.</span>
+                <span className="text-slate-400">evaluation@server:~$ # Waiting for evaluation to start...</span>
               ) : (
                 logMessages.map((msg, idx) => (
-                  <div key={idx} className="py-0.5 border-b border-slate-800 last:border-0">
+                  <div key={`log-${idx}-${msg.slice(0, 10)}`} className="py-0.5 font-mono">
                     {msg}
                   </div>
                 ))
@@ -212,7 +307,7 @@ export default function EvaluationInterface() {
                     onClick={() => {
                       navigator.clipboard.writeText(logMessages.join('\n'));
                       toast({
-                        title: 'Copied to clipboard',
+                        title: 'Terminal output copied',
                         variant: 'default',
                       });
                     }}
@@ -233,21 +328,26 @@ export default function EvaluationInterface() {
         </div>
       )}
 
-      {/* Animated Evaluation Mode Text */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="mb-6 px-2 py-2 bg-gray-700 border-0 shadow-xl border-blue-200 rounded-md mt-8 max-w-6xl mx-auto"
-      >
-        <p className="text-slate-300 text-center">
-          This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
-        </p>
-      </motion.div>
+            <div className="flex flex-col h-full max-h-[calc(100vh-120px)]">
+                {/* Scrollable Middle Section */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 min-h-0">
+          <div className="max-w-6xl w-full mx-auto space-y-4">
+            {/* Eval Mode System Message */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="px-2 py-4 bg-gray-700 border-0 shadow-xl border-blue-200 rounded-md mx-auto max-w-6xl w-full"
+            >
+              <p className="text-slate-300 text-center">
+                This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
+              </p>
+            </motion.div>
 
-      <Card className="mb-4 bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg flex flex-col max-w-6xl w-full mx-auto">
-        <CardContent className="p-6 bg-gray-700 rounded-lg">
-          <h2 className="text-xl text-white font-semibold mb-6">Claim Evaluation</h2>
+            {/* Claim Evaluation Card */}
+            <Card className="bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg">
+            <CardContent className="p-6 bg-gray-700 rounded-lg">
+              <h2 className="text-xl text-white font-semibold mb-6">Claim Evaluation</h2>
           
           {/* Model Selection Section */}
           <div className="mb-8">
@@ -257,9 +357,16 @@ export default function EvaluationInterface() {
             </p>
             
             <ToggleGroup 
-              type="multiple" 
-              value={evaluationData.selectedModels}
-              onValueChange={(value) => updateEvaluationData({ selectedModels: value as ModelOption[] })}
+              type="single" 
+              value={evaluationData.selectedModels.length > 0 ? evaluationData.selectedModels[0] : ''}
+              onValueChange={(value) => {
+                const newModel = value ? (value as ModelOption) : null;
+                updateEvaluationData({ selectedModels: newModel ? [newModel] : [] });
+                // If primary model is also cross-refine model, clear cross-refine model in evaluationData
+                if (newModel && evaluationData.crossRefineModel && newModel === evaluationData.crossRefineModel) {
+                  updateEvaluationData({ crossRefineModel: null });
+                }
+              }}
               className="justify-start"
             >
               {modelOptions.map((option) => (
@@ -274,6 +381,96 @@ export default function EvaluationInterface() {
               ))}
             </ToggleGroup>
           </div>
+
+          {/* API Keys Section - Only show if paid models are selected */}
+          {getSelectedModelProviders().size > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-medium text-white mb-3">API Keys</h3>
+              <p className="text-sm text-slate-300 mb-4">
+                Enter API keys for the selected paid models:
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* OpenAI API Key */}
+                {getSelectedModelProviders().has('openai') && (
+                  <div>
+                    <label htmlFor="openai-api-key" className="block text-sm font-medium text-slate-300 mb-2">
+                      OpenAI API Key
+                      <span className="text-xs text-slate-400 ml-2">(GPT-4o, GPT-4.1, GPT-4.1 nano)</span>
+                    </label>
+                    <input
+                      id="openai-api-key"
+                      type="password"
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                {/* Anthropic API Key */}
+                {getSelectedModelProviders().has('anthropic') && (
+                  <div>
+                    <label htmlFor="anthropic-api-key" className="block text-sm font-medium text-slate-300 mb-2">
+                      Anthropic API Key
+                      <span className="text-xs text-slate-400 ml-2">(Claude 3.7 Sonnet)</span>
+                    </label>
+                    <input
+                      id="anthropic-api-key"
+                      type="password"
+                      value={anthropicApiKey}
+                      onChange={(e) => setAnthropicApiKey(e.target.value)}
+                      placeholder="sk-ant-..."
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                {/* Gemini API Key */}
+                {getSelectedModelProviders().has('gemini') && (
+                  <div>
+                    <label htmlFor="gemini-api-key" className="block text-sm font-medium text-slate-300 mb-2">
+                      Gemini API Key
+                      <span className="text-xs text-slate-400 ml-2">(Gemini 2.5 Pro, Gemini 2.5 Flash)</span>
+                    </label>
+                    <input
+                      id="gemini-api-key"
+                      type="password"
+                      value={geminiApiKey}
+                      onChange={(e) => setGeminiApiKey(e.target.value)}
+                      placeholder="AI..."
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                )}
+
+                {/* Grok API Key */}
+                {getSelectedModelProviders().has('grok') && (
+                  <div>
+                    <label htmlFor="grok-api-key" className="block text-sm font-medium text-slate-300 mb-2">
+                      Grok API Key
+                      <span className="text-xs text-slate-400 ml-2">(Grok 3 Beta)</span>
+                    </label>
+                    <input
+                      id="grok-api-key"
+                      type="password"
+                      value={grokApiKey}
+                      onChange={(e) => setGrokApiKey(e.target.value)}
+                      placeholder="xai-..."
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-600">
+                <p className="text-xs text-slate-400">
+                  🔒 API keys are transmitted securely and are not stored. They're only used for your current evaluation session.
+                </p>
+              </div>
+            </div>
+          )}
           
           {/* Prompt Style Selection Section */}
           <div className="mb-8">
@@ -350,7 +547,7 @@ export default function EvaluationInterface() {
             
             <div className="flex flex-wrap gap-4 mb-4">
               {/* Self-Refine Option */}
-              <div className="relative">
+              <div className="relative" data-eval-method="self-refine">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -397,17 +594,13 @@ export default function EvaluationInterface() {
               </div>
 
               {/* Cross-Refine Option */}
-              <div className="relative">
+              <div className="relative" data-eval-method="cross-refine">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
                         variant="outline"
-                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${
-                          selectedEvalMethod === 'CROSS-REFINE'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : ''
-                        }`}
+                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${selectedEvalMethod === 'CROSS-REFINE' ? 'bg-primary/10 border-primary text-primary' : ''}`}
                         onClick={() => {
                           setSelectedEvalMethod(selectedEvalMethod === 'CROSS-REFINE' ? null : 'CROSS-REFINE');
                           setShowCrossRefineInput(!showCrossRefineInput);
@@ -444,6 +637,38 @@ export default function EvaluationInterface() {
               </div>
             </div>
 
+            {/* New: Cross-Refine Model Selection (Model B) */}
+            {selectedEvalMethod === 'CROSS-REFINE' && (
+              <div className="mt-6 mb-8">
+                <h3 className="text-lg font-medium text-white mb-3">Cross-Refine Feedback Model (Model B)</h3>
+                <p className="text-sm text-slate-300 mb-4">
+                  Select a model to generate feedback during cross-refinement. This model cannot be the same as your primary selected model.
+                </p>
+                <ToggleGroup 
+                  type="single" 
+                  value={evaluationData.crossRefineModel || ''} // Use null if no model is selected
+                  onValueChange={(value) => updateEvaluationData({ crossRefineModel: value ? (value as ModelOption) : null })}
+                  className="justify-start flex-wrap"
+                >
+                  {modelOptions
+                    .filter(option => 
+                      !evaluationData.selectedModels.includes(option.value as ModelOption)
+                    )
+                    .map((option) => (
+                      <ToggleGroupItem 
+                        key={option.value} 
+                        value={option.value}
+                        variant="outline"
+                        className={`border-2 px-1 py-1 font-medium text-slate-200 bg-gray-800 border-gray-600 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary min-w-[112px] text-start`}
+                      >
+                        {option.label}
+                      </ToggleGroupItem>
+                    ))
+                  }
+                </ToggleGroup>
+              </div>
+            )}
+
             {selectedEvalMethod && (
               <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
                 <p className="text-sm text-slate-300">
@@ -453,8 +678,14 @@ export default function EvaluationInterface() {
                     return (
                       <>
                         <span className="font-medium text-white">{selectedEvalMethod}</span> selected with{' '}
-                        <span className="font-medium text-primary">{iterationCount}</span>{' '}
+                        <span className="font-medium text-orange-500">{iterationCount}</span>{' '}
                         iteration{pluralSuffix}
+                        {selectedEvalMethod === 'CROSS-REFINE' && (
+                          <>
+                            <span className="text-slate-300"> and feedback model </span>
+                            <span className="text-amber-500"> {evaluationData.crossRefineModel}</span>
+                          </>
+                        )}
                       </>
                     );
                   })()}
@@ -497,7 +728,7 @@ export default function EvaluationInterface() {
                 type="file"
                 id="file-upload"
                 className="hidden"
-                accept=".csv,.json,.jsonl,.txt,text/csv,application/json,application/x-jsonlines,text/plain"
+                accept=".csv,.json,.jsonl,text/csv,application/json,application/x-jsonlines"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
                   if (file && !isValidFileType(file)) {
@@ -515,77 +746,109 @@ export default function EvaluationInterface() {
             </div>
           </div>
           
-          {/* Progress Tracking */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-lg font-medium text-white">Evaluation Progress</h3>
-              <span className="text-sm font-medium text-slate-300">{progress}%</span>
-            </div>
-            
-            <Progress value={progress} className="h-3 mb-2" />
-            
-            <div className="flex justify-between items-center mt-2">
-              <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
-              <div className="flex space-x-2">
-                {progressStatus === 'pending' ? (
-                  <Button
-                    type="button"
-                    onClick={() => startEvaluation()}
-                    disabled={evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0}
-                    className="bg-gray-800 hover:bg-gray-900 text-white"
-                  >
-                    <Play className="h-4 w-4 mr-1" />
-                    Start Evaluation
-                  </Button>
-                ) : (
-                  <>
-                    <Button
-                      type="button"
-                      onClick={() => startEvaluation()}
-                      disabled={progressStatus === 'processing'}
-                      className="bg-gray-800 hover:bg-gray-900 text-white"
-                    >
-                      {progressStatus === 'processing' ? 'Processing...' : 'Restart Evaluation'}
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setShowLogModal(true)}
-                      variant="outline"
-                      className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
-                    >
-                      View Output Log
-                    </Button>
-                  </>
+              {/* Visualization Section */}
+              <div ref={resultsRef}>
+                {progressStatus === 'completed' && evaluationResults && evaluationResults.scores.length > 0 && (
+                  <EvaluationResultsComponent 
+                    results={evaluationResults}
+                    selectedModels={evaluationData.selectedModels}
+                    selectedPromptStyles={evaluationData.selectedPromptStyles}
+                  />
                 )}
               </div>
-            </div>
+              
+              {/* Reset Button */}
+              {progressStatus === 'completed' && (
+                <div className="flex justify-end mt-8">
+                  <Button
+                    type="button"
+                    onClick={resetEvaluation}
+                    className="bg-slate-200 hover:bg-slate-300 text-slate-800"
+                  >
+                    Start New Evaluation
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+            {/* Evaluation Progress Section */}
+            <Card className="bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg">
+              <CardContent className="p-6 bg-gray-700 rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-lg font-medium text-white">Evaluation Progress</h3>
+                  <span className="text-sm font-medium text-slate-300">{progress}%</span>
+                </div>
+                
+                <Progress value={progress} className="h-3 mb-2" />
+                
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
+                  <div className="flex space-x-2">
+                    {progressStatus === 'pending' ? (
+                      <Button
+                        type="button"
+                        onClick={handleStartEvaluation}
+                        disabled={
+                          evaluationData.selectedModels.length === 0 || 
+                          evaluationData.selectedPromptStyles.length === 0 || 
+                          !evaluationData.file
+                        }
+                        className="bg-gray-800 hover:bg-gray-900 text-white"
+                      >
+                        <Play className="h-4 w-4 mr-1" />
+                        Start Evaluation
+                      </Button>
+                    ) : progressStatus === 'processing' ? (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={stopEvaluation}
+                          variant="destructive"
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                          Stop Evaluation
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => setShowLogModal(true)}
+                          variant="outline"
+                          className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
+                        >
+                          View Terminal
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          type="button"
+                          onClick={handleStartEvaluation}
+                          className="bg-gray-800 hover:bg-gray-900 text-white"
+                        >
+                          Restart Evaluation
+                        </Button>
+                        <Button
+                          type="button"
+                          onClick={() => setShowLogModal(true)}
+                          variant="outline"
+                          className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
+                        >
+                          View Terminal
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          {/* Visualization Section */}
-          <div ref={resultsRef}>
-            {progressStatus === 'completed' && evaluationResults && evaluationResults.scores.length > 0 && (
-              <EvaluationResultsComponent 
-                results={evaluationResults}
-                selectedModels={evaluationData.selectedModels}
-                selectedPromptStyles={evaluationData.selectedPromptStyles}
-              />
-            )}
-          </div>
-          
-          {/* Reset Button */}
-          {progressStatus === 'completed' && (
-            <div className="flex justify-end mt-8">
-              <Button
-                type="button"
-                onClick={resetEvaluation}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-800"
-              >
-                Start New Evaluation
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* Fixed Footer - Additional buttons if needed */}
+        <div className="flex-shrink-0 p-4">
+          {/* This can remain empty or contain fixed footer content */}
+        </div>
+      </div>
 
       {/* Prompt Preview Modal */}
       <Dialog open={isPromptModalOpen} onOpenChange={(open) => {
