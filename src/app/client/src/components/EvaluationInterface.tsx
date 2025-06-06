@@ -346,7 +346,7 @@ export default function EvaluationInterface() {
           <div className="mb-8">
             <h3 className="text-lg font-medium text-white mb-3">Models</h3>
             <p className="text-sm text-slate-300 mb-4">
-              Select one or more models to use for claim normalization:
+              Select one model to use for claim normalization:
             </p>
             
             <ToggleGroup 
@@ -468,38 +468,46 @@ export default function EvaluationInterface() {
           {/* Prompt Style Selection Section */}
           <div className="mb-8">
             <h3 className="text-lg font-medium text-white mb-3">Prompt Styles</h3>
+            <p className="text-sm text-slate-300 mb-4">
+              Select one prompt style for evaluation:
+            </p>
             
             {/* Default Prompts Section */}
             <div className="mb-6">
               <h4 className="text-md font-medium text-slate-300 mb-2">Default Prompts</h4>
+              
+              <ToggleGroup 
+                type="single" 
+                value={evaluationData.selectedPromptStyles.length > 0 ? evaluationData.selectedPromptStyles[0] : ''}
+                onValueChange={(value) => {
+                  const newPromptStyle = value ? (value as PromptStyleOption) : null;
+                  updateEvaluationData({ selectedPromptStyles: newPromptStyle ? [newPromptStyle] : [] });
+                }}
+                className="justify-start flex-wrap mb-3"
+              >
+                {promptStyleOptions.map((option) => (
+                  <ToggleGroupItem 
+                    key={option.value} 
+                    value={option.value}
+                    variant="outline"
+                    className={`border-2 px-4 py-2 font-medium text-slate-200 bg-gray-800 border-gray-600 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary min-w-[120px] text-center`}
+                  >
+                    {option.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+              
               <div className="flex flex-wrap gap-2 mb-3">
                 {promptStyleOptions.map((option) => (
-                  <div key={option.value} className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      className={`border-2 px-4 py-2 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white ${
-                        evaluationData.selectedPromptStyles.includes(option.value as PromptStyleOption)
-                          ? 'bg-primary/10 border-primary text-primary'
-                          : ''
-                      }`}
-                      onClick={() => {
-                        const newStyles = evaluationData.selectedPromptStyles.includes(option.value as PromptStyleOption)
-                          ? evaluationData.selectedPromptStyles.filter(style => style !== option.value)
-                          : [...evaluationData.selectedPromptStyles, option.value as PromptStyleOption];
-                        updateEvaluationData({ selectedPromptStyles: newStyles });
-                      }}
-                    >
-                      {option.label}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-slate-400 hover:text-white hover:bg-gray-700"
-                      onClick={() => handlePromptPreview(option.value as PromptStyleOption)}
-                    >
-                      View
-                    </Button>
-                  </div>
+                  <Button
+                    key={`view-${option.value}`}
+                    variant="ghost"
+                    size="sm"
+                    className="text-slate-400 hover:text-white hover:bg-gray-700"
+                    onClick={() => handlePromptPreview(option.value as PromptStyleOption)}
+                  >
+                    View {option.label}
+                  </Button>
                 ))}
               </div>
               <div className="mt-4">
