@@ -55,7 +55,7 @@ The system follows a sophisticated pipeline to normalize social media claims:
 
 - **Node.js** (v18 or higher)
 - **Python** (v3.8 or higher)
-- **API Keys** for chosen models (OpenAI, Anthropic, Google AI, xAI)
+- **API Keys** for chosen models (OpenAI, Anthropic, Gemini, xAI)
 
 ## 🚀 Getting Started: Development and Local Testing
 
