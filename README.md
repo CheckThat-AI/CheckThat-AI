@@ -3,7 +3,8 @@
 This project is a part of <a href="https://checkthat.gitlab.io/clef2025/task2/" rel="noopener nofollow ugc">CLEF-CheckThat! Lab's Task2 (2025)</a>. Given a noisy, unstructured social media post, the task is to simplify it into a concise form. This system leverages advanced AI models to transform complex, informal claims into clear, normalized statements suitable for fact-checking and analysis.
 
 > Demo Video 🎥
-https://github.com/Nikhil-Kadapala/clef2025-checkthat-lab-task2/blob/main/assets/Demo.mp4
+
+https://github.com/user-attachments/assets/0363cfca-8a38-4abf-b04f-244f92cd878e
 
 ![Claim Normalization Demo](https://img.shields.io/badge/Status-Live%20Demo-brightgreen?style=for-the-badge)
 
