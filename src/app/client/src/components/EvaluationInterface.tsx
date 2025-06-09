@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ModelOption, PromptStyleOption } from '@shared/types';
-import { Play, PaperclipIcon, FileTextIcon, FileJsonIcon, FileSpreadsheetIcon } from 'lucide-react';
+import { ModelOption, PromptStyleOption, FieldMapping } from '@shared/types';
+import { Play, PaperclipIcon, FileTextIcon, FileJsonIcon, FileSpreadsheetIcon, BarChart3Icon, InfoIcon } from 'lucide-react';
 import EvaluationResultsComponent from './EvaluationResults';
+import FieldMappingModal from './FieldMappingModal';
 import { motion } from 'framer-motion';
 import { defaultPrompts, sys_prompt } from '@shared/prompts';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import './scrollbar-hide.css';
 
 // Add CSS for hiding scrollbars
@@ -36,6 +44,8 @@ const scrollbarStyles = `
     scrollbar-width: none;
   }
 `;
+
+
 
 // Function to get the appropriate icon based on file extension
 const getFileIcon = (fileName: string) => {
@@ -78,6 +88,21 @@ export default function EvaluationInterface() {
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [showSelfRefineInput, setShowSelfRefineInput] = useState(false);
   const [showCrossRefineInput, setShowCrossRefineInput] = useState(false);
+  const [selectedEvalMetric, setSelectedEvalMetric] = useState<string>('');
+  const [showEvalMethodInfo, setShowEvalMethodInfo] = useState(false);
+  const [selectedMethodInfo, setSelectedMethodInfo] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
+  const [isCustomPromptSelected, setIsCustomPromptSelected] = useState(false);
+  const [showFieldMappingModal, setShowFieldMappingModal] = useState(false);
+  // Use evaluationData.fieldMapping instead of local state
+  const fieldMapping = evaluationData.fieldMapping || {
+    inputText: null,
+    expectedOutput: null,
+    actualOutput: null,
+    context: null,
+    retrievalContext: null,
+    metadata: null,
+    comments: null
+  };
   
   // API Key states
   const [openaiApiKey, setOpenaiApiKey] = useState('');
@@ -86,6 +111,22 @@ export default function EvaluationInterface() {
   const [grokApiKey, setGrokApiKey] = useState('');
   
   const { toast } = useToast();
+  
+  // Helper function to get provider family for a model
+  const getModelProvider = (model: string): string => {
+    if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(model)) {
+      return 'openai';
+    } else if (['claude-3-7-sonnet-latest'].includes(model)) {
+      return 'anthropic';
+    } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(model)) {
+      return 'gemini';
+    } else if (['grok-3-latest'].includes(model)) {
+      return 'grok';
+    } else if (model === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free') {
+      return 'free';
+    }
+    return 'unknown';
+  };
   
   // Helper functions to determine which API keys are needed
   const getSelectedModelProviders = () => {
@@ -121,6 +162,25 @@ export default function EvaluationInterface() {
     { value: 'Zero-shot-CoT', label: 'Zero-shot-CoT' },
     { value: 'Few-shot-CoT', label: 'Few-shot-CoT' }
   ];
+  
+  const evalMetricOptions: { value: string; label: string; description: string; category: string }[] = [
+    // Reference-based metrics (require ground truth/gold standard)
+    { value: 'accuracy', label: 'Accuracy', description: 'TP + TN / (TP + TN + FP + FN)', category: 'Reference-based' },
+    { value: 'precision', label: 'Precision', description: 'TP / (TP + FP)', category: 'Reference-based' },
+    { value: 'recall', label: 'Recall', description: 'TP / (TP + FN)', category: 'Reference-based' },
+    { value: 'f1-score', label: 'F1-Score', description: 'Harmonic mean of precision and recall', category: 'Reference-based' },
+    { value: 'exact-match', label: 'Exact Match', description: 'Binary exact string matching', category: 'Reference-based' },
+    
+    // Reference-less metrics (can work without ground truth)
+    { value: 'bleu', label: 'BLEU', description: 'Bilingual Evaluation Understudy for text similarity', category: 'Reference-less' },
+    { value: 'rouge', label: 'ROUGE', description: 'Recall-Oriented Understudy for Gisting Evaluation', category: 'Reference-less' },
+    { value: 'meteor', label: 'METEOR', description: 'Metric for Evaluation of Translation with Explicit ORdering', category: 'Reference-less' },
+    { value: 'bertscore', label: 'BERTScore', description: 'Semantic similarity using BERT embeddings', category: 'Reference-less' },
+    { value: 'cosine-similarity', label: 'Cosine Similarity', description: 'Cosine similarity between embeddings', category: 'Reference-less' }
+  ];
+
+  const referenceBased = evalMetricOptions.filter(m => m.category === 'Reference-based');
+  const referenceLess = evalMetricOptions.filter(m => m.category === 'Reference-less');
   
   // Scroll to results when evaluation is completed
   useEffect(() => {
@@ -196,7 +256,9 @@ export default function EvaluationInterface() {
   const validateApiKeys = () => {
     const selectedProviders = getSelectedModelProviders();
     const missingKeys = [];
+    const missingFeedbackKeys = [];
     
+    // Check main model API keys
     if (selectedProviders.has('openai') && !openaiApiKey.trim()) {
       missingKeys.push('OpenAI');
     }
@@ -210,10 +272,32 @@ export default function EvaluationInterface() {
       missingKeys.push('Grok');
     }
 
-    if (missingKeys.length > 0) {
+    // Check Cross-Refine feedback model API keys (only if different from main model provider)
+    if (selectedEvalMethod === 'CROSS-REFINE' && 
+        evaluationData.crossRefineModel && 
+        evaluationData.crossRefineModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' &&
+        evaluationData.selectedModels.length > 0 &&
+        getModelProvider(evaluationData.crossRefineModel) !== getModelProvider(evaluationData.selectedModels[0])) {
+      
+      const feedbackProvider = getModelProvider(evaluationData.crossRefineModel);
+      
+      if (feedbackProvider === 'openai' && !openaiApiKey.trim()) {
+        missingFeedbackKeys.push('OpenAI (for feedback model)');
+      } else if (feedbackProvider === 'anthropic' && !anthropicApiKey.trim()) {
+        missingFeedbackKeys.push('Anthropic (for feedback model)');
+      } else if (feedbackProvider === 'gemini' && !geminiApiKey.trim()) {
+        missingFeedbackKeys.push('Gemini (for feedback model)');
+      } else if (feedbackProvider === 'grok' && !grokApiKey.trim()) {
+        missingFeedbackKeys.push('Grok (for feedback model)');
+      }
+    }
+
+    const allMissingKeys = [...missingKeys, ...missingFeedbackKeys];
+    
+    if (allMissingKeys.length > 0) {
       toast({
         title: "API Keys Required",
-        description: `Please provide API keys for: ${missingKeys.join(', ')}`,
+        description: `Please provide API keys for: ${allMissingKeys.join(', ')}`,
         variant: "destructive",
       });
       return false;
@@ -224,11 +308,11 @@ export default function EvaluationInterface() {
   const handleStartEvaluation = () => {
     if (!validateApiKeys()) return;
     
-    // Add validation for Cross-Refine model
+    // Add validation for Cross-Refine model only if CROSS-REFINE is selected
     if (selectedEvalMethod === 'CROSS-REFINE' && !evaluationData.crossRefineModel) {
       toast({
         title: "Cross-Refine Model Required",
-        description: "Please select a model for cross-refinement.",
+        description: "Please select a feedback model for cross-refinement.",
         variant: "destructive",
       });
       return;
@@ -243,6 +327,34 @@ export default function EvaluationInterface() {
     };
     
     startEvaluation(apiKeys);
+  };
+
+  const handleFieldMapping = (mapping: FieldMapping) => {
+    updateEvaluationData({ fieldMapping: mapping });
+    toast({
+      title: "Field Mapping Saved",
+      description: `Mapped input text to "${mapping.inputText}" column.`,
+      variant: "default",
+    });
+  };
+
+  const handleFieldMappingClose = () => {
+    setShowFieldMappingModal(false);
+  };
+
+  const evalMethodDescriptions = {
+    'SELF-REFINE': {
+      title: 'Self-Refine Process',
+      description: 'A single model iteratively improves its own output through self-criticism and refinement.',
+      process: 'Initial Claim → Self-Generated Feedback → Refined Claim → Repeat',
+      benefits: ['Single model approach', 'Consistent reasoning style', 'Lower computational cost']
+    },
+    'CROSS-REFINE': {
+      title: 'Cross-Refine Process', 
+      description: 'Two different models work together - one generates claims while the other provides feedback.',
+      process: 'Initial Claim (LLM A) → External Feedback (LLM B) → Refined Claim (LLM A) → Repeat',
+      benefits: ['Diverse perspectives', 'Reduced bias', 'Enhanced quality through collaboration']
+    }
   };
 
   return (
@@ -333,7 +445,7 @@ export default function EvaluationInterface() {
               className="px-2 py-4 bg-gray-700 border-0 shadow-xl border-blue-200 rounded-md mx-auto max-w-6xl w-full"
             >
               <p className="text-slate-300 text-center">
-                This is the evaluation mode interface for batch-processing large datasets. If you wish to extract claims from a single source, please switch back to the Chat mode.
+                This is the batch mode interface for processing large datasets. If you wish to extract claims from a single source, please switch back to Chat mode.
               </p>
             </motion.div>
 
@@ -344,355 +456,408 @@ export default function EvaluationInterface() {
           
           {/* Model Selection Section */}
           <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Models</h3>
-            <p className="text-sm text-slate-300 mb-4">
-              Select one model to use for claim normalization:
-            </p>
-            
-            <ToggleGroup 
-              type="single" 
-              value={evaluationData.selectedModels.length > 0 ? evaluationData.selectedModels[0] : ''}
-              onValueChange={(value) => {
-                const newModel = value ? (value as ModelOption) : null;
-                updateEvaluationData({ selectedModels: newModel ? [newModel] : [] });
-                // If primary model is also cross-refine model, clear cross-refine model in evaluationData
-                if (newModel && evaluationData.crossRefineModel && newModel === evaluationData.crossRefineModel) {
-                  updateEvaluationData({ crossRefineModel: null });
-                }
-              }}
-              className="justify-start"
-            >
-              {modelOptions.map((option) => (
-                <ToggleGroupItem 
-                  key={option.value} 
-                  value={option.value}
-                  variant="outline"
-                  className={`border-2 px-1 py-1 font-medium text-slate-200 bg-gray-800 border-gray-600 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary min-w-[112px] text-start`}
-                >
-                  {option.label}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+            <h3 className="text-lg font-medium text-white mb-3">Model</h3>
+            <div className="flex items-center space-x-4">
+              <Select 
+                value={evaluationData.selectedModels.length > 0 ? evaluationData.selectedModels[0] : ''}
+                onValueChange={(value) => {
+                  const newModel = value ? (value as ModelOption) : null;
+                  const selectedModels = newModel ? [newModel] : [];
+                  updateEvaluationData({ selectedModels });
+                  // If primary model is also cross-refine model, clear cross-refine model in evaluationData
+                  if (newModel && evaluationData.crossRefineModel && newModel === evaluationData.crossRefineModel) {
+                    updateEvaluationData({ crossRefineModel: null });
+                  }
+                }}
+              >
+                <SelectTrigger className="w-[300px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                  {modelOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                      <span className="font-medium">{option.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-          {/* API Keys Section - Only show if paid models are selected */}
-          {getSelectedModelProviders().size > 0 && (
-            <div className="mb-8">
-              <h3 className="text-lg font-medium text-white mb-3">API Keys</h3>
-              <p className="text-sm text-slate-300 mb-4">
-                Enter API keys for the selected paid models:
-              </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* OpenAI API Key */}
-                {getSelectedModelProviders().has('openai') && (
-                  <div>
-                    <label htmlFor="openai-api-key" className="block text-sm font-medium text-slate-300 mb-2">
-                      OpenAI API Key
-                      <span className="text-xs text-slate-400 ml-2">(GPT-4o, GPT-4.1, GPT-4.1 nano)</span>
-                    </label>
-                    <input
-                      id="openai-api-key"
-                      type="password"
-                      value={openaiApiKey}
-                      onChange={(e) => setOpenaiApiKey(e.target.value)}
-                      placeholder="sk-..."
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                )}
+              {/* API Key Input - appears when paid model is selected */}
+              {evaluationData.selectedModels.length > 0 && evaluationData.selectedModels[0] !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-slate-300 whitespace-nowrap">
+                    {(() => {
+                      const selectedModel = evaluationData.selectedModels[0];
+                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
+                        return 'OpenAI API Key:';
+                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
+                        return 'Anthropic API Key:';
+                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
+                        return 'Gemini API Key:';
+                      } else if (['grok-3-latest'].includes(selectedModel)) {
+                        return 'Grok API Key:';
+                      }
+                      return 'API Key:';
+                    })()}
+                  </label>
+                  <input
+                    type="password"
+                    value={(() => {
+                      const selectedModel = evaluationData.selectedModels[0];
+                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
+                        return openaiApiKey;
+                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
+                        return anthropicApiKey;
+                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
+                        return geminiApiKey;
+                      } else if (['grok-3-latest'].includes(selectedModel)) {
+                        return grokApiKey;
+                      }
+                      return '';
+                    })()}
+                    onChange={(e) => {
+                      const selectedModel = evaluationData.selectedModels[0];
+                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
+                        setOpenaiApiKey(e.target.value);
+                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
+                        setAnthropicApiKey(e.target.value);
+                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
+                        setGeminiApiKey(e.target.value);
+                      } else if (['grok-3-latest'].includes(selectedModel)) {
+                        setGrokApiKey(e.target.value);
+                      }
+                    }}
+                    placeholder={(() => {
+                      const selectedModel = evaluationData.selectedModels[0];
+                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
+                        return 'sk-...';
+                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
+                        return 'sk-ant-...';
+                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
+                        return 'AI...';
+                      } else if (['grok-3-latest'].includes(selectedModel)) {
+                        return 'xai-...';
+                      }
+                      return 'Enter API key...';
+                    })()}
+                    className="w-[300px] px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+              )}
+            </div>
 
-                {/* Anthropic API Key */}
-                {getSelectedModelProviders().has('anthropic') && (
-                  <div>
-                    <label htmlFor="anthropic-api-key" className="block text-sm font-medium text-slate-300 mb-2">
-                      Anthropic API Key
-                      <span className="text-xs text-slate-400 ml-2">(Claude 3.7 Sonnet)</span>
-                    </label>
-                    <input
-                      id="anthropic-api-key"
-                      type="password"
-                      value={anthropicApiKey}
-                      onChange={(e) => setAnthropicApiKey(e.target.value)}
-                      placeholder="sk-ant-..."
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                )}
-
-                {/* Gemini API Key */}
-                {getSelectedModelProviders().has('gemini') && (
-                  <div>
-                    <label htmlFor="gemini-api-key" className="block text-sm font-medium text-slate-300 mb-2">
-                      Gemini API Key
-                      <span className="text-xs text-slate-400 ml-2">(Gemini 2.5 Pro, Gemini 2.5 Flash)</span>
-                    </label>
-                    <input
-                      id="gemini-api-key"
-                      type="password"
-                      value={geminiApiKey}
-                      onChange={(e) => setGeminiApiKey(e.target.value)}
-                      placeholder="AI..."
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                )}
-
-                {/* Grok API Key */}
-                {getSelectedModelProviders().has('grok') && (
-                  <div>
-                    <label htmlFor="grok-api-key" className="block text-sm font-medium text-slate-300 mb-2">
-                      Grok API Key
-                      <span className="text-xs text-slate-400 ml-2">(Grok 3 Beta)</span>
-                    </label>
-                    <input
-                      id="grok-api-key"
-                      type="password"
-                      value={grokApiKey}
-                      onChange={(e) => setGrokApiKey(e.target.value)}
-                      placeholder="xai-..."
-                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-600">
+            {/* Security Notice - appears when API key is shown */}
+            {evaluationData.selectedModels.length > 0 && evaluationData.selectedModels[0] !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
+              <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-600 max-w-fit">
                 <p className="text-xs text-slate-400">
                   🔒 API keys are transmitted securely and are not stored. They're only used for your current evaluation session.
                 </p>
               </div>
-            </div>
-          )}
+            )}
+          </div>
           
           {/* Prompt Style Selection Section */}
           <div className="mb-8">
             <h3 className="text-lg font-medium text-white mb-3">Prompt Styles</h3>
             <p className="text-sm text-slate-300 mb-4">
-              Select one prompt style for evaluation:
+              Select a prompt style for evaluation:
             </p>
             
-            {/* Default Prompts Section */}
-            <div className="mb-6">
-              <h4 className="text-md font-medium text-slate-300 mb-2">Default Prompts</h4>
-              
-              <ToggleGroup 
-                type="single" 
-                value={evaluationData.selectedPromptStyles.length > 0 ? evaluationData.selectedPromptStyles[0] : ''}
+            <div className="flex items-center space-x-4 mb-4">
+              <Select 
+                value={(() => {
+                  if (isCustomPromptSelected) return 'Custom';
+                  if (evaluationData.selectedPromptStyles.length > 0) return evaluationData.selectedPromptStyles[0];
+                  return '';
+                })()}
                 onValueChange={(value) => {
-                  const newPromptStyle = value ? (value as PromptStyleOption) : null;
-                  updateEvaluationData({ selectedPromptStyles: newPromptStyle ? [newPromptStyle] : [] });
+                  if (value === 'Custom') {
+                    setIsCustomPromptSelected(true);
+                    updateEvaluationData({ selectedPromptStyles: [] });
+                  } else {
+                    setIsCustomPromptSelected(false);
+                    const newPromptStyle = value as PromptStyleOption;
+                    updateEvaluationData({ selectedPromptStyles: [newPromptStyle] });
+                  }
                 }}
-                className="justify-start flex-wrap mb-3"
               >
-                {promptStyleOptions.map((option) => (
-                  <ToggleGroupItem 
-                    key={option.value} 
-                    value={option.value}
-                    variant="outline"
-                    className={`border-2 px-4 py-2 font-medium text-slate-200 bg-gray-800 border-gray-600 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary min-w-[120px] text-center`}
-                  >
-                    {option.label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
-              
-              <div className="flex flex-wrap gap-2 mb-3">
-                {promptStyleOptions.map((option) => (
-                  <Button
-                    key={`view-${option.value}`}
-                    variant="ghost"
-                    size="sm"
-                    className="text-slate-400 hover:text-white hover:bg-gray-700"
-                    onClick={() => handlePromptPreview(option.value as PromptStyleOption)}
-                  >
-                    View {option.label}
-                  </Button>
-                ))}
-              </div>
-              <div className="mt-4">
+                <SelectTrigger className="w-[300px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                  <SelectValue placeholder="Select prompt" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                  {promptStyleOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                      <span className="font-medium">{option.label}</span>
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="Custom" className="text-white focus:bg-gray-600 focus:text-white">
+                    <span className="font-medium">Custom</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* View Prompt Button - appears when default prompt is selected */}
+              {evaluationData.selectedPromptStyles.length > 0 && !isCustomPromptSelected && (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-slate-200 hover:text-white border-gray-600 bg-gray-800 hover:bg-gray-600"
+                  className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
                   onClick={() => {
-                    setSelectedPrompt('Zero-shot');
+                    setSelectedPrompt(evaluationData.selectedPromptStyles[0]);
                     setIsPromptModalOpen(true);
-                    setShowSystemPrompt(true);
+                    setShowSystemPrompt(false);
                   }}
                 >
-                  View System Prompt
+                  View Prompt
                 </Button>
-              </div>
+              )}
             </div>
 
-            {/* Custom Prompt Section */}
-            <div>
-              <h4 className="text-md font-medium  text-slate-300 mb-2">Custom Prompt</h4>
-              <textarea
-                className="w-full p-3 border border-gray-800 bg-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                rows={4}
-                placeholder="Enter your custom prompt here..."
-                value={evaluationData.customPrompt || ''}
-                onChange={(e) => updateEvaluationData({ customPrompt: e.target.value })}
-              />
-            </div>
+            {/* Custom Prompt Section - only appears when Custom is selected */}
+            {isCustomPromptSelected && (
+              <div>
+                <h4 className="text-md font-medium text-slate-300 mb-2">Custom Prompt</h4>
+                <textarea
+                  className="w-full p-3 border border-gray-800 bg-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  rows={4}
+                  placeholder="Enter your custom prompt here..."
+                  value={evaluationData.customPrompt || ''}
+                  onChange={(e) => updateEvaluationData({ customPrompt: e.target.value })}
+                />
+              </div>
+            )}
           </div>
 
           {/* Eval Methods Section */}
           <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Evaluation Methods</h3>
-            <p className="text-sm text-slate-300 mb-4">
-              Select an evaluation method for iterative refinement:
-            </p>
-            
-            <div className="flex flex-wrap gap-4 mb-4">
-              {/* Self-Refine Option */}
-              <div className="relative" data-eval-method="self-refine">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${
-                          selectedEvalMethod === 'SELF-REFINE'
-                            ? 'bg-primary/10 border-primary text-primary'
-                            : ''
-                        }`}
-                        onClick={() => {
-                          setSelectedEvalMethod(selectedEvalMethod === 'SELF-REFINE' ? null : 'SELF-REFINE');
-                          setShowSelfRefineInput(!showSelfRefineInput);
-                          setShowCrossRefineInput(false);
-                        }}
-                      >
-                        SELF-REFINE
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-gray-900 border-gray-600">
-                      <div className="text-white text-sm mb-2 font-medium">Self-Refine Process</div>
-                      <div className="bg-gray-800 p-2 rounded text-xs text-slate-300">
-                        Initial Claim → Feedback → Refined Claim → Repeat
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                
-                {/* Numeric Input for Self-Refine */}
-                {showSelfRefineInput && (
-                  <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-40">
-                    <label htmlFor="self-refine-iterations" className="block text-sm text-slate-300 mb-2">Iterations (1-10):</label>
-                    <input
-                      id="self-refine-iterations"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={selfRefineIterations}
-                      onChange={(e) => setSelfRefineIterations(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                      className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                )}
-              </div>
+            <h3 className="text-lg font-medium text-white mb-3">Iterative Refinement Methods (Optional)</h3>
+            <div className="flex items-center space-x-4">
+              <Select
+                value={selectedEvalMethod || 'STANDARD'}
+                onValueChange={(value) => {
+                  const newValue = value === 'STANDARD' ? null : value as 'SELF-REFINE' | 'CROSS-REFINE';
+                  setSelectedEvalMethod(newValue);
+                  setShowSelfRefineInput(false);
+                  setShowCrossRefineInput(false);
+                }}
+              >
+                <SelectTrigger className="w-[400px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                  <SelectValue placeholder="Select evaluation method" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                  <SelectItem value="STANDARD" className="text-white focus:bg-gray-600 focus:text-white">
+                    <span className="font-medium">Standard (No Refinement)</span>
+                  </SelectItem>
+                  <SelectItem value="SELF-REFINE" className="text-white focus:bg-gray-600 focus:text-white">
+                    <span className="font-medium">SELF-REFINE</span>
+                  </SelectItem>
+                  <SelectItem value="CROSS-REFINE" className="text-white focus:bg-gray-600 focus:text-white">
+                    <span className="font-medium">CROSS-REFINE</span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
-              {/* Cross-Refine Option */}
-              <div className="relative" data-eval-method="cross-refine">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`border-2 px-6 py-3 text-slate-200 bg-gray-800 border-gray-600 hover:bg-gray-600 hover:text-white transition-all duration-200 ${selectedEvalMethod === 'CROSS-REFINE' ? 'bg-primary/10 border-primary text-primary' : ''}`}
-                        onClick={() => {
-                          setSelectedEvalMethod(selectedEvalMethod === 'CROSS-REFINE' ? null : 'CROSS-REFINE');
-                          setShowCrossRefineInput(!showCrossRefineInput);
-                          setShowSelfRefineInput(false);
-                        }}
-                      >
-                        CROSS-REFINE
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent className="bg-gray-900 border-gray-600">
-                      <div className="text-white text-sm mb-2 font-medium">Cross-Refine Process</div>
-                      <div className="bg-gray-800 p-2 rounded text-xs text-slate-300">
-                        Initial Claim (Model A) → Feedback (Model B) → Refined Claim (Model A) → Repeat
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                
-                {/* Numeric Input for Cross-Refine */}
-                {showCrossRefineInput && (
-                  <div className="absolute top-full left-0 mt-2 bg-gray-800 border border-gray-600 rounded-lg p-3 shadow-lg z-40">
-                    <label htmlFor="cross-refine-iterations" className="block text-sm text-slate-300 mb-2">Iterations (1-10):</label>
-                    <input
-                      id="cross-refine-iterations"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={crossRefineIterations}
-                      onChange={(e) => setCrossRefineIterations(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                      className="w-20 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* New: Cross-Refine Model Selection (Model B) */}
-            {selectedEvalMethod === 'CROSS-REFINE' && (
-              <div className="mt-6 mb-8">
-                <h3 className="text-lg font-medium text-white mb-3">Cross-Refine Feedback Model (Model B)</h3>
-                <p className="text-sm text-slate-300 mb-4">
-                  Select a model to generate feedback during cross-refinement. This model cannot be the same as your primary selected model.
-                </p>
-                <ToggleGroup 
-                  type="single" 
-                  value={evaluationData.crossRefineModel || ''} // Use null if no model is selected
-                  onValueChange={(value) => updateEvaluationData({ crossRefineModel: value ? (value as ModelOption) : null })}
-                  className="justify-start flex-wrap"
+              {/* Info Button - appears when refinement method is selected */}
+              {selectedEvalMethod && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600 px-2 py-1"
+                  onClick={() => {
+                    if (selectedEvalMethod === 'SELF-REFINE' || selectedEvalMethod === 'CROSS-REFINE') {
+                      setSelectedMethodInfo(selectedEvalMethod);
+                    }
+                    setShowEvalMethodInfo(true);
+                  }}
                 >
-                  {modelOptions
-                    .filter(option => 
-                      !evaluationData.selectedModels.includes(option.value as ModelOption)
-                    )
-                    .map((option) => (
-                      <ToggleGroupItem 
-                        key={option.value} 
-                        value={option.value}
-                        variant="outline"
-                        className={`border-2 px-1 py-1 font-medium text-slate-200 bg-gray-800 border-gray-600 data-[state=on]:bg-primary/10 data-[state=on]:border-primary data-[state=on]:text-primary min-w-[112px] text-start`}
-                      >
-                        {option.label}
-                      </ToggleGroupItem>
-                    ))
-                  }
-                </ToggleGroup>
-              </div>
-            )}
+                  <InfoIcon className="h-4 w-4" />
+                </Button>
+              )}
 
-            {selectedEvalMethod && (
-              <div className="mt-4 p-3 bg-gray-800 rounded-lg border border-gray-600">
-                <p className="text-sm text-slate-300">
-                  {(() => {
-                    const iterationCount = selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations;
-                    const pluralSuffix = iterationCount > 1 ? 's' : '';
-                    return (
-                      <>
-                        <span className="font-medium text-white">{selectedEvalMethod}</span> selected with{' '}
-                        <span className="font-medium text-orange-500">{iterationCount}</span>{' '}
-                        iteration{pluralSuffix}
-                        {selectedEvalMethod === 'CROSS-REFINE' && (
-                          <>
-                            <span className="text-slate-300"> and feedback model </span>
-                            <span className="text-amber-500"> {evaluationData.crossRefineModel}</span>
-                          </>
-                        )}
-                      </>
-                    );
-                  })()}
-                </p>
-              </div>
-            )}
+              {/* Iteration Selector - appears when refinement method is selected */}
+              {selectedEvalMethod && (
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="iterations-input" className="text-sm text-slate-300 whitespace-nowrap">
+                    Iterations:
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="iterations-input"
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations}
+                      onChange={(e) => {
+                        const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
+                        if (selectedEvalMethod === 'SELF-REFINE') {
+                          setSelfRefineIterations(value);
+                        } else {
+                          setCrossRefineIterations(value);
+                        }
+                      }}
+                      className="w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary text-center"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Cross-Refine Model Selector - appears when CROSS-REFINE is selected */}
+              {selectedEvalMethod === 'CROSS-REFINE' && (
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="feedback-model-select" className="text-sm text-slate-300 whitespace-nowrap">
+                    Feedback Model:
+                  </label>
+                  <Select
+                    value={evaluationData.crossRefineModel || ''}
+                    onValueChange={(value) => {
+                      const crossRefineModel = value ? (value as ModelOption) : null;
+                      updateEvaluationData({ crossRefineModel });
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                      <SelectValue placeholder="Select Model B" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                      {modelOptions
+                        .filter(option => 
+                          !evaluationData.selectedModels.includes(option.value as ModelOption)
+                        )
+                        .map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                            {option.label}
+                          </SelectItem>
+                        ))
+                      }
+                    </SelectContent>
+                  </Select>
+
+                  {/* Cross-Refine API Key Input - appears when paid feedback model from different family is selected */}
+                  {evaluationData.crossRefineModel && 
+                   evaluationData.crossRefineModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' &&
+                   evaluationData.selectedModels.length > 0 &&
+                   getModelProvider(evaluationData.crossRefineModel) !== getModelProvider(evaluationData.selectedModels[0]) && (
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-slate-300 whitespace-nowrap">
+                        {(() => {
+                          const feedbackModel = evaluationData.crossRefineModel;
+                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
+                            return 'OpenAI API Key:';
+                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
+                            return 'Anthropic API Key:';
+                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
+                            return 'Gemini API Key:';
+                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
+                            return 'Grok API Key:';
+                          }
+                          return 'API Key:';
+                        })()}
+                      </label>
+                      <input
+                        type="password"
+                        value={(() => {
+                          const feedbackModel = evaluationData.crossRefineModel;
+                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
+                            return openaiApiKey;
+                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
+                            return anthropicApiKey;
+                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
+                            return geminiApiKey;
+                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
+                            return grokApiKey;
+                          }
+                          return '';
+                        })()}
+                        onChange={(e) => {
+                          const feedbackModel = evaluationData.crossRefineModel;
+                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
+                            setOpenaiApiKey(e.target.value);
+                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
+                            setAnthropicApiKey(e.target.value);
+                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
+                            setGeminiApiKey(e.target.value);
+                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
+                            setGrokApiKey(e.target.value);
+                          }
+                        }}
+                        placeholder={(() => {
+                          const feedbackModel = evaluationData.crossRefineModel;
+                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
+                            return 'sk-...';
+                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
+                            return 'sk-ant-...';
+                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
+                            return 'AI...';
+                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
+                            return 'xai-...';
+                          }
+                          return 'Enter API key...';
+                        })()}
+                        className="w-[200px] px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Eval Metrics Selection Section */}
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-white mb-3">Eval Metrics</h3>
+            <Select
+              value={selectedEvalMetric}
+              onValueChange={(value) => {
+                setSelectedEvalMetric(value);
+                updateEvaluationData({ evalMetric: value });
+              }}
+            >
+              <SelectTrigger className="w-[450px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                <BarChart3Icon className="h-4 w-4 mr-2 flex-shrink-0" />
+                <SelectValue placeholder="Select evaluation metric" />
+              </SelectTrigger>
+              <SelectContent 
+                side="right" 
+                align="start"
+                className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none min-w-[500px] max-h-[300px] overflow-y-auto"
+              >
+                {/* Reference-based metrics */}
+                <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide bg-gray-600">
+                  Reference-based
+                </div>
+                {referenceBased.map((option) => (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value} 
+                    className="text-white focus:bg-gray-800 focus:text-white pl-8 pr-3 py-3 min-h-[60px] bg-gray-700"
+                  >
+                    <div className="flex flex-col text-white w-full">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-slate-400 font-normal leading-tight mt-1 break-words">{option.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+                
+                {/* Separator */}
+                <div className="mx-2 my-1 border-t border-slate-600"></div>
+                
+                {/* Reference-less metrics */}
+                <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide bg-gray-600">
+                  Reference-less
+                </div>
+                {referenceLess.map((option) => (
+                  <SelectItem 
+                    key={option.value} 
+                    value={option.value} 
+                    className="text-white focus:bg-gray-800 focus:text-white pl-8 pr-3 py-3 min-h-[60px] bg-gray-700"
+                  >
+                    <div className="flex flex-col text-white w-full">
+                      <span className="font-medium">{option.label}</span>
+                      <span className="text-xs text-slate-400 font-normal leading-tight mt-1 break-words">{option.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* File Upload Section */}
@@ -719,13 +884,34 @@ export default function EvaluationInterface() {
                   </Tooltip>
                 </TooltipProvider>
                 {evaluationData.file && (
-                  <div className="text-sm text-slate-500 flex items-center">
-                    {getFileIcon(evaluationData.file.name)}
-                    <span>{evaluationData.file.name}</span>
+                  <div className="flex flex-col space-y-2">
+                    <div className="text-sm text-slate-500 flex items-center">
+                      {getFileIcon(evaluationData.file.name)}
+                      <span>{evaluationData.file.name}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-3 bg-gray-700 hover:bg-gray-600 text-white border-slate-600 text-xs px-2 py-1"
+                        onClick={() => setShowFieldMappingModal(true)}
+                      >
+                        Edit Mapping
+                      </Button>
+                    </div>
+                    {fieldMapping.inputText && (
+                      <div className="text-xs text-slate-400 ml-4">
+                        Input: "{fieldMapping.inputText}"
+                        {fieldMapping.expectedOutput && `, Expected Output: "${fieldMapping.expectedOutput}"`}
+                        {fieldMapping.actualOutput && `, Actual Output: "${fieldMapping.actualOutput}"`}
+                        {fieldMapping.context && `, Context: "${fieldMapping.context}"`}
+                        {fieldMapping.retrievalContext && `, Retrieval Context: "${fieldMapping.retrievalContext}"`}
+                        {fieldMapping.metadata && `, Metadata: "${fieldMapping.metadata}"`}
+                        {fieldMapping.comments && `, Comments: "${fieldMapping.comments}"`}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-              <input
+              <input  
                 type="file"
                 id="file-upload"
                 className="hidden"
@@ -741,7 +927,12 @@ export default function EvaluationInterface() {
                     e.target.value = ''; // Reset input
                     return;
                   }
-                  updateEvaluationData({ file });
+                  if (file) {
+                    updateEvaluationData({ file });
+                    setShowFieldMappingModal(true);
+                  } else {
+                    updateEvaluationData({ file: null, fieldMapping: null });
+                  }
                 }}
               />
             </div>
@@ -776,70 +967,98 @@ export default function EvaluationInterface() {
             {/* Evaluation Progress Section */}
             <Card className="bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg">
               <CardContent className="p-6 bg-gray-700 rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-lg font-medium text-white">Evaluation Progress</h3>
-                  <span className="text-sm font-medium text-slate-300">{progress}%</span>
-                </div>
-                
-                <Progress value={progress} className="h-3 mb-2" />
-                
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
-                  <div className="flex space-x-2">
-                    {progressStatus === 'pending' ? (
-                      <Button
-                        type="button"
-                        onClick={handleStartEvaluation}
-                        disabled={
-                          evaluationData.selectedModels.length === 0 || 
-                          evaluationData.selectedPromptStyles.length === 0 || 
-                          !evaluationData.file
-                        }
-                        className="bg-gray-800 hover:bg-gray-900 text-white"
-                      >
-                        <Play className="h-4 w-4 mr-1" />
-                        Start Evaluation
-                      </Button>
-                    ) : progressStatus === 'processing' ? (
-                      <>
-                        <Button
-                          type="button"
-                          onClick={stopEvaluation}
-                          variant="destructive"
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          Stop Evaluation
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => setShowLogModal(true)}
-                          variant="outline"
-                          className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
-                        >
-                          View Terminal
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button
-                          type="button"
-                          onClick={handleStartEvaluation}
-                          className="bg-gray-800 hover:bg-gray-900 text-white"
-                        >
-                          Restart Evaluation
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={() => setShowLogModal(true)}
-                          variant="outline"
-                          className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
-                        >
-                          View Terminal
-                        </Button>
-                      </>
-                    )}
+                {progressStatus === 'pending' ? (
+                  /* Initial state - Just the start button */
+                  <div className="flex flex-col items-center space-y-4">
+                    <h3 className="text-lg font-medium text-white">Ready to Evaluate</h3>
+                    <p className="text-sm text-slate-300 text-center">
+                      Click the button below to start your batch evaluation
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={handleStartEvaluation}
+                      disabled={
+                        evaluationData.selectedModels.length === 0 || 
+                        evaluationData.selectedPromptStyles.length === 0 || 
+                        !evaluationData.file
+                      }
+                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg"
+                    >
+                      <Play className="h-5 w-5 mr-2" />
+                      Start Evaluation
+                    </Button>
                   </div>
-                </div>
+                ) : (
+                  /* Progress state - Animated progress bar and controls */
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="text-lg font-medium text-white">Evaluation Progress</h3>
+                      <span className="text-sm font-medium text-slate-300">{progress}%</span>
+                    </div>
+                    
+                    <motion.div
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                      className="origin-left"
+                    >
+                      <Progress value={progress} className="h-3 mb-2" />
+                    </motion.div>
+                    
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: 0.4 }}
+                      className="flex justify-between items-center mt-2"
+                    >
+                      <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
+                      <div className="flex space-x-2">
+                        {progressStatus === 'processing' ? (
+                          <>
+                            <Button
+                              type="button"
+                              onClick={stopEvaluation}
+                              variant="destructive"
+                              className="bg-red-600 hover:bg-red-700 text-white"
+                            >
+                              Stop Evaluation
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => setShowLogModal(true)}
+                              variant="outline"
+                              className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
+                            >
+                              View Terminal
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              onClick={handleStartEvaluation}
+                              className="bg-gray-800 hover:bg-gray-900 text-white"
+                            >
+                              Restart Evaluation
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={() => setShowLogModal(true)}
+                              variant="outline"
+                              className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
+                            >
+                              View Terminal
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -851,7 +1070,7 @@ export default function EvaluationInterface() {
         </div>
       </div>
 
-      {/* Prompt Preview Modal */}
+            {/* Prompt Preview Modal */}
       <Dialog open={isPromptModalOpen} onOpenChange={(open) => {
         setIsPromptModalOpen(open);
         if (!open) {
@@ -864,20 +1083,96 @@ export default function EvaluationInterface() {
           bg-gray-800 
           text-slate-200">
           <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div>
             <DialogTitle className="text-white">
-              {showSystemPrompt ? 'System Prompt' : (selectedPrompt && defaultPrompts[selectedPrompt].title)}
+              {(() => {
+                if (showSystemPrompt) {
+                  return 'System Prompt';
+                }
+                return selectedPrompt && defaultPrompts[selectedPrompt].title;
+              })()}
             </DialogTitle>
-            <DialogDescription className="text-slate-300">
-              {showSystemPrompt ? 'The system prompt that guides the model\'s behavior' : (selectedPrompt && defaultPrompts[selectedPrompt].description)}
+            <DialogDescription className="text-slate-300 mt-4">
+              {(() => {
+                if (showSystemPrompt) {
+                  return 'The system prompt that guides the model\'s behavior';
+                }
+                return selectedPrompt && defaultPrompts[selectedPrompt].description;
+              })()}
             </DialogDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                onClick={() => setShowSystemPrompt(!showSystemPrompt)}
+              >
+                {showSystemPrompt ? 'View Prompt' : 'View System Prompt'}
+              </Button>
+            </div>
           </DialogHeader>
           <div className="mt-4 flex-1 overflow-auto">
             <pre className="bg-gray-700 text-slate-200 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-sm">
-              {showSystemPrompt ? sys_prompt : (selectedPrompt && defaultPrompts[selectedPrompt].template)}
+              {(() => {
+                if (showSystemPrompt) {
+                  return sys_prompt;
+                }
+                return selectedPrompt && defaultPrompts[selectedPrompt].template;
+              })()}
             </pre>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Evaluation Method Info Modal */}
+      <Dialog open={showEvalMethodInfo} onOpenChange={setShowEvalMethodInfo}>
+        <DialogContent 
+          className="max-w-2xl bg-gray-800 text-slate-200"
+        >
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {selectedMethodInfo && evalMethodDescriptions[selectedMethodInfo].title}
+            </DialogTitle>
+            <DialogDescription className="text-slate-300">
+              {selectedMethodInfo && evalMethodDescriptions[selectedMethodInfo].description}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            {selectedMethodInfo && (
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-2">Process Flow:</h4>
+                  <div className="bg-gray-700 p-3 rounded-lg">
+                    <code className="text-sm text-slate-200">
+                      {evalMethodDescriptions[selectedMethodInfo].process}
+                    </code>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-white mb-2">Benefits:</h4>
+                  <ul className="space-y-1">
+                    {evalMethodDescriptions[selectedMethodInfo].benefits.map((benefit, index) => (
+                      <li key={index} className="text-sm text-slate-300 flex items-center">
+                        <span className="text-green-400 mr-2">•</span>
+                        {benefit}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Field Mapping Modal */}
+      <FieldMappingModal
+        isOpen={showFieldMappingModal}
+        onClose={handleFieldMappingClose}
+        file={evaluationData.file}
+        onMapping={handleFieldMapping}
+      />
     </div>
   );
 }
