@@ -34,7 +34,7 @@ export interface AppContextType {
   apiKey: string;
   setApiKey: (key: string) => void;
   
-  // Evaluation mode
+  // Batch mode
   evaluationData: EvaluationData;
   updateEvaluationData: (data: Partial<EvaluationData>) => void;
   resetEvaluation: () => void;
@@ -60,7 +60,9 @@ export interface AppContextType {
 const defaultEvaluationData: EvaluationData = {
   file: null,
   selectedModels: [],
-  selectedPromptStyles: []
+  selectedPromptStyles: [],
+  fieldMapping: null,
+  evalMetric: null
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -250,6 +252,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
     
+    if (!evaluationData.fieldMapping || !evaluationData.fieldMapping.inputText) {
+      toast({
+        title: "Field Mapping Required",
+        description: "Please map the input text field for your dataset.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     if (!sessionId) {
       toast({
         title: "Error",
@@ -295,7 +306,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
               eval_method: selectedEvalMethod,
               custom_prompt: evaluationData.customPrompt || null,
               api_keys: apiKeys || {},
-              cross_refine_model: evaluationData.crossRefineModel || null
+              cross_refine_model: evaluationData.crossRefineModel || null,
+              field_mapping: evaluationData.fieldMapping || null,
+              eval_metric: evaluationData.evalMetric || null
             }
           };
           
@@ -358,7 +371,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
               });
             }
-                         setProgressStatus('completed');
+             setProgressStatus('completed');
              setProgress(100);
              websocket.close();
             
@@ -427,8 +440,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
   
-
-
   const contextValue = useMemo(() => ({
     mode,
     toggleMode,
