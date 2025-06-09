@@ -266,7 +266,6 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
     try:
         # Send initial status
         sync_send_update("status", {"message": "Starting evaluation...", "progress": 0})
-        
         # Parse evaluation data
         models = evaluation_data.get('models', [])
         prompt_styles = evaluation_data.get('prompt_styles', [])
@@ -274,6 +273,8 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
         self_refine_iterations = evaluation_data.get('self_refine_iterations', 0)
         api_keys = evaluation_data.get('api_keys', {})
         cross_refine_model = evaluation_data.get('cross_refine_model', None)
+        field_mapping = evaluation_data.get('field_mapping', None)
+        eval_metric = evaluation_data.get('eval_metric', None)
         
         if not models or not prompt_styles or not file_data:
             sync_send_update("error", {"message": "Missing required evaluation data"})
@@ -329,7 +330,9 @@ def run_evaluation_with_progress(session_id: str, evaluation_data: dict, websock
             refine_iters=self_refine_iterations,
             progress_callback=progress_callback,
             stop_event=stop_event,
-            cross_refine_model=cross_refine_model
+            cross_refine_model=cross_refine_model,
+            field_mapping=field_mapping,
+            eval_metric=eval_metric
         )
         
         # Flush any remaining logs
