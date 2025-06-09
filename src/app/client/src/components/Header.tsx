@@ -14,13 +14,13 @@ export default function Header() {
           <h1 className="text-xl font-semibold text-slate-200">Claim Normalization</h1>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-slate-200">
-            {mode === 'chat' ? 'Chat Mode' : 'Evaluation Mode'}
+          <span className="text-slate-200">
+            {mode === 'chat' ? 'Chat Mode' : 'Batch Mode'}
           </span>
-          <Switch 
+          <Switch
             checked={mode === 'evaluation'}
             onCheckedChange={toggleMode}
-            title="Toggle between Chat and Evaluation modes"
+            title="Toggle between Chat and Batch modes"
           />
         </div>
       </div>
