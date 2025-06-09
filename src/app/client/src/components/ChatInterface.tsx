@@ -249,13 +249,14 @@ export default function ChatInterface() {
                             ))}
                           </SelectContent>
                         </Select>
+                        
                         {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                           <div className="flex items-center space-x-2">
                             <div className="relative">
                               <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                               <Input
                                 type={showApiKey ? "text" : "password"}
-                                placeholder="Enter your API Key here"
+                                placeholder="🔒 Enter your API Key here"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
                                 className="pl-9 pr-9 w-[250px] bg-gray-700 text-white border-slate-600 placeholder:text-slate-400 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
@@ -406,13 +407,14 @@ export default function ChatInterface() {
                           ))}
                         </SelectContent>
                       </Select>
+                      
                       {selectedModel && selectedModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
                         <div className="flex items-center space-x-2">
                           <div className="relative">
                             <KeyIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
                               type={showApiKey ? "text" : "password"}
-                              placeholder="Enter your API Key here"
+                              placeholder="🔒 Enter your API Key here"
                               value={apiKey}
                               onChange={(e) => setApiKey(e.target.value)}
                               className="pl-9 pr-9 w-[250px] bg-gray-700 text-white border-slate-600 placeholder:text-slate-400 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
