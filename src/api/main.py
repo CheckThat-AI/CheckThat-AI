@@ -35,7 +35,7 @@ except Exception as e:
 if ENV_TYPE == "dev":
     ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
 else:
-    ORIGINS = ["https://nikhil-kadapala.github.io"]
+    ORIGINS = ["https://nikhil-kadapala.github.io", "https://www.claimnorm.com", "https://claimnorm.com"]
 
 # Configure CORS
 app.add_middleware(
