@@ -11,7 +11,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-      timezone: "UTC"
+      timezone: "Etc/UTC"
     open-pull-requests-limit: 10
     assignees:
       - "Nikhil-Kadapala"
@@ -21,7 +21,6 @@ updates:
       - "python"
     allow:
       - dependency-type: "all"
-        update-type: "security"
     commit-message:
       prefix: "security"
       include: "scope"
@@ -30,8 +29,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
+      timezone: "Etc/UTC"
     open-pull-requests-limit: 10
     assignees:
       - "Nikhil-Kadapala"
@@ -40,8 +39,7 @@ updates:
       - "dependencies"
       - "frontend"
     allow:
-      - dependency-type: "all"
-        update-type: "security"
+      - dependency-type: "direct"
     commit-message:
       prefix: "security"
       include: "scope"
@@ -49,7 +47,6 @@ updates:
       # Ignore patch updates for development dependencies
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
-        dependency-type: "development"
         
   # Enable updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -61,4 +58,4 @@ updates:
       - "Nikhil-Kadapala"
     labels:
       - "ci-cd"
-      - "automation"
+      - "automation" 
