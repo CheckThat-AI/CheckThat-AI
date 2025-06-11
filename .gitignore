@@ -3,37 +3,38 @@ venv
 .env
 .vscode
 .vs
-my-base-model
-lora-adapters
-Llama-3.3-70B-Instruct
-.ipynb_checkpoints
-.github
 __pycache__
 *.pyc
 *.pyo
 *.tar.zst
-stderr.py
-plots.py
-bert_score.py
 *.log
 *.jsonl
 *.csv
 /src/data/results/scores.jsonl
 src/data
-PROMPTS.md
-.replit
-.replit.nix
-node_modules
-package.json
-package-lock.json
-src/app/node_modules
-src/app/package.json
-src/app/package-lock.json
-src/app/tsconfig.json
-src/app/postcss.config.js
-src/app/tailwind.config.ts
-src/app/vite.config.ts
-src/app/replit.nix
-src/app/theme.json
-src/app/pyproject.toml
-src/app/uv.lock
+
+# Node.js dependencies (but keep package.json and package-lock.json)
+node_modules/
+src/app/node_modules/
+
+# Build outputs
+dist/
+build/
+docs/
+src/app/dist/
+
+# Environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
