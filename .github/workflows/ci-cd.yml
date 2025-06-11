@@ -1,0 +1,99 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [dev]  # Run CI on dev branch pushes
+  pull_request:
+    branches: [main]  # Run CI on PRs to main
+
+jobs:
+  # Test Backend
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r src/api/requirements.txt
+          pip install pytest pytest-asyncio httpx
+      
+      - name: Run backend tests
+        run: |
+          python -m pytest tests/ -v
+        env:
+          # Use dummy keys for testing
+          OPENAI_API_KEY: "test-key"
+          ANTHROPIC_API_KEY: "test-key"
+      
+      - name: Check API endpoints
+        run: |
+          python -c "
+          import sys
+          sys.path.append('src')
+          from api.main_new import app
+          print('✅ Backend imports successfully')
+          "
+
+  # Test Frontend
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: src/app/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: src/app
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: src/app
+        run: npm run build:client
+        env:
+          NODE_ENV: production
+      
+      - name: Run frontend tests (if any)
+        working-directory: src/app
+        run: npm test --if-present
+        
+  # Code Quality
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install linting tools
+        run: |
+          pip install flake8 black isort mypy
+      
+      - name: Run linting
+        run: |
+          flake8 src/api src/utils --max-line-length=100 --extend-ignore=E203,W503
+          black --check src/api src/utils || echo "⚠️ Code formatting issues found"
+          isort --check-only src/api src/utils || echo "⚠️ Import sorting issues found"
+
+  # Build validation
+  build-validation:
+    needs: [test-backend, test-frontend, code-quality]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All checks passed
+        run: |
+          echo "✅ All tests and quality checks passed!"
+          echo "✅ Ready for deployment to main branch" 

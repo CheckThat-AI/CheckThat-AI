@@ -1,0 +1,144 @@
+name: Backup Batch Evaluation
+
+# This provides a backup for large evaluations when Render free tier hits limits
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Models to evaluate (comma-separated)'
+        required: true
+        default: 'gpt-4o-2024-11-20'
+      prompt_styles:
+        description: 'Prompt styles (comma-separated)'
+        required: true  
+        default: 'Zero-shot'
+      dataset_file:
+        description: 'Dataset file name in repo'
+        required: true
+        default: 'data/sample_dataset.csv'
+      notification_url:
+        description: 'Webhook URL to notify when complete (optional)'
+        required: false
+
+jobs:
+  backup-evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hours max
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r src/api/requirements.txt
+          python -c "import nltk; nltk.download('punkt_tab', quiet=True); nltk.download('wordnet', quiet=True); nltk.download('omw-1.4', quiet=True)"
+      
+      - name: Set up API keys
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" >> $GITHUB_ENV
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+          echo "GROK_API_KEY=${{ secrets.GROK_API_KEY }}" >> $GITHUB_ENV
+          echo "TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}" >> $GITHUB_ENV
+      
+      - name: Run evaluation
+        run: |
+          python -c "
+          import sys
+          import os
+          import pandas as pd
+          import json
+          from datetime import datetime
+          
+          sys.path.append('.')
+          from src.utils.evaluate import start_evaluation
+          
+          # Parse inputs
+          models = '${{ github.event.inputs.models }}'.split(',')
+          prompt_styles = '${{ github.event.inputs.prompt_styles }}'.split(',')
+          
+          models = [m.strip() for m in models]
+          prompt_styles = [p.strip() for p in prompt_styles]
+          
+          print(f'🚀 Starting backup evaluation with models: {models}')
+          print(f'📋 Prompt styles: {prompt_styles}')
+          
+          # Load dataset
+          df = pd.read_csv('${{ github.event.inputs.dataset_file }}')
+          print(f'📊 Loaded dataset with {len(df)} rows')
+          
+          # Run evaluation with progress logging
+          def progress_callback(update_type, data):
+              if update_type == 'progress':
+                  print(f'Progress: {data.get(\"percentage\", 0):.1f}%')
+              elif update_type == 'log':
+                  print(f'Log: {data.get(\"message\", \"\")}')
+          
+          results = start_evaluation(
+              models=models,
+              prompt_styles=prompt_styles,
+              input_data=df,
+              refine_iters=0,
+              progress_callback=progress_callback
+          )
+          
+          print('\\n✅ Evaluation completed!')
+          print('📊 Results:')
+          for combo, score in results.items():
+              print(f'  {combo}: {score:.4f}')
+          
+          # Save results summary
+          summary = {
+              'timestamp': datetime.now().isoformat(),
+              'models': models,
+              'prompt_styles': prompt_styles,
+              'dataset_rows': len(df),
+              'results': results,
+              'run_id': '${{ github.run_id }}',
+              'run_url': 'https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}'
+          }
+          
+          with open('evaluation_summary.json', 'w') as f:
+              json.dump(summary, f, indent=2)
+          "
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: backup-evaluation-results-${{ github.run_id }}
+          path: |
+            data/results/
+            data/inference_results.csv
+            evaluation_summary.json
+          retention-days: 30
+      
+      - name: Create results badge
+        run: |
+          echo "![Evaluation](https://img.shields.io/badge/Backup%20Evaluation-Completed-green?style=flat-square)" > results_badge.md
+          echo "" >> results_badge.md
+          echo "**Backup evaluation completed successfully!**" >> results_badge.md
+          echo "" >> results_badge.md
+          echo "- **Run ID**: ${{ github.run_id }}" >> results_badge.md
+          echo "- **Models**: ${{ github.event.inputs.models }}" >> results_badge.md
+          echo "- **Prompt Styles**: ${{ github.event.inputs.prompt_styles }}" >> results_badge.md
+          echo "- **Dataset**: ${{ github.event.inputs.dataset_file }}" >> results_badge.md
+          echo "" >> results_badge.md
+          echo "[📥 Download Results](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> results_badge.md
+      
+      - name: Notify completion (if webhook provided)
+        if: github.event.inputs.notification_url != ''
+        run: |
+          curl -X POST "${{ github.event.inputs.notification_url }}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"text\": \"✅ Backup evaluation completed!\",
+              \"run_id\": \"${{ github.run_id }}\",
+              \"models\": \"${{ github.event.inputs.models }}\",
+              \"download_url\": \"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+            }" 

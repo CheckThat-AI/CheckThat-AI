@@ -1,0 +1,124 @@
+name: Batch Evaluation
+
+on:
+  repository_dispatch:
+    types: [run-evaluation]
+  workflow_dispatch:
+    inputs:
+      models:
+        description: 'Comma-separated list of models'
+        required: true
+        default: 'gpt-4o-2024-11-20'
+      prompt_styles:
+        description: 'Comma-separated list of prompt styles'
+        required: true
+        default: 'Zero-shot'
+      dataset_url:
+        description: 'URL to dataset file'
+        required: true
+      openai_key:
+        description: 'OpenAI API Key'
+        required: false
+      anthropic_key:
+        description: 'Anthropic API Key'
+        required: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r src/api/requirements.txt
+          pip install pandas tqdm nltk
+      
+      - name: Download NLTK data
+        run: |
+          python -c "
+          import nltk
+          nltk.download('punkt_tab')
+          nltk.download('wordnet') 
+          nltk.download('omw-1.4')
+          "
+      
+      - name: Set up environment variables
+        run: |
+          echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY || github.event.inputs.openai_key }}" >> $GITHUB_ENV
+          echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY || github.event.inputs.anthropic_key }}" >> $GITHUB_ENV
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+          echo "GROK_API_KEY=${{ secrets.GROK_API_KEY }}" >> $GITHUB_ENV
+          echo "TOGETHER_API_KEY=${{ secrets.TOGETHER_API_KEY }}" >> $GITHUB_ENV
+      
+      - name: Download dataset
+        run: |
+          curl -o dataset.csv "${{ github.event.inputs.dataset_url || github.event.client_payload.dataset_url }}"
+      
+      - name: Run evaluation
+        run: |
+          python -c "
+          import sys
+          import os
+          sys.path.append('.')
+          
+          from src.utils.evaluate import start_evaluation
+          import pandas as pd
+          
+          # Parse inputs
+          models = '${{ github.event.inputs.models || github.event.client_payload.models }}'.split(',')
+          prompt_styles = '${{ github.event.inputs.prompt_styles || github.event.client_payload.prompt_styles }}'.split(',')
+          
+          # Load dataset
+          df = pd.read_csv('dataset.csv')
+          
+          # Run evaluation
+          results = start_evaluation(
+              models=[m.strip() for m in models],
+              prompt_styles=[p.strip() for p in prompt_styles], 
+              input_data=df,
+              refine_iters=0
+          )
+          
+          print('Evaluation Results:')
+          for combo, score in results.items():
+              print(f'{combo}: {score:.4f}')
+          "
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: evaluation-results
+          path: |
+            data/results/
+            data/inference_results.csv
+          retention-days: 30
+      
+      - name: Create results summary
+        run: |
+          echo "## Evaluation Results" > results_summary.md
+          echo "" >> results_summary.md
+          python -c "
+          import json
+          import os
+          if os.path.exists('data/results/scores.jsonl'):
+              with open('data/results/scores.jsonl', 'r') as f:
+                  for line in f:
+                      data = json.loads(line.strip())
+                      print(f'| {data[\"model\"]} | {data[\"prompt_style\"]} | {data[\"meteor_score\"]:.4f} |')
+          " >> results_summary.md
+      
+      - name: Post results comment
+        if: github.event_name == 'repository_dispatch'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          issue-number: ${{ github.event.client_payload.issue_number }}
+          body-file: results_summary.md 
