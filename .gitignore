@@ -12,15 +12,28 @@ __pycache__
 *.csv
 /src/data/results/scores.jsonl
 src/data
-node_modules
-package.json
-package-lock.json
-src/app/node_modules
-src/app/package.json
-src/app/package-lock.json
-src/app/tsconfig.json
-src/app/postcss.config.js
-src/app/tailwind.config.ts
-src/app/vite.config.ts
-src/app/theme.json
-src/app/uv.lock
+
+# Node.js dependencies (but keep package.json and package-lock.json)
+node_modules/
+src/app/node_modules/
+src/app/dist/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
