@@ -16,11 +16,12 @@ src/data
 # Node.js dependencies (but keep package.json and package-lock.json)
 node_modules/
 src/app/node_modules/
-src/app/dist/
 
 # Build outputs
 dist/
 build/
+docs/
+src/app/dist/
 
 # Environment files
 .env.local
