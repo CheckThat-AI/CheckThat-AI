@@ -40,9 +40,11 @@ jobs:
         working-directory: src/app
         run: npm ci
       
-      - name: Build project
+      - name: Build client for production
         working-directory: src/app
-        run: npm run build
+        run: npm run build:client
+        env:
+          NODE_ENV: production
       
       - name: Setup Pages
         uses: actions/configure-pages@v5
