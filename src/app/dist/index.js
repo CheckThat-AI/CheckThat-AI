@@ -168,7 +168,11 @@ function serveStatic(app2) {
     );
   }
   app2.use(express.static(distPath));
-  app2.use("*", (_req, res) => {
+  const staticFileLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // max 100 requests per windowMs
+  });
+  app2.use("*", staticFileLimiter, (_req, res) => {
     res.sendFile(path2.resolve(distPath, "index.html"));
   });
 }
