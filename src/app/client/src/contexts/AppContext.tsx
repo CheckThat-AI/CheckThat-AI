@@ -227,7 +227,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Generate session ID on mount
   useEffect(() => {
-    const id = Math.random().toString(36).substring(2, 15);
+    const array = new Uint32Array(1);
+    window.crypto.getRandomValues(array);
+    const id = array[0].toString(36);
     setSessionId(id);
   }, []);
 
