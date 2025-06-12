@@ -4,7 +4,7 @@ import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
 import path from "path";
 
 export default defineConfig({
-  base: process.env.NODE_ENV === "production" ? "/clef2025-checkthat-lab-task2/" : "/",
+  base: process.env.NODE_ENV === "production" ? "/" : "/",
   
   plugins: [
     react(),

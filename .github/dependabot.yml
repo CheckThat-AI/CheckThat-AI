@@ -11,7 +11,11 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
+<<<<<<< HEAD
       timezone: "Etc/UTC"
+=======
+      timezone: "UTC"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
     open-pull-requests-limit: 10
     assignees:
       - "Nikhil-Kadapala"
@@ -21,6 +25,10 @@ updates:
       - "python"
     allow:
       - dependency-type: "all"
+<<<<<<< HEAD
+=======
+        update-type: "security"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
     commit-message:
       prefix: "security"
       include: "scope"
@@ -29,8 +37,13 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
+<<<<<<< HEAD
       interval: "daily"
       timezone: "Etc/UTC"
+=======
+      interval: "weekly"
+      day: "monday"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
     open-pull-requests-limit: 10
     assignees:
       - "Nikhil-Kadapala"
@@ -39,7 +52,12 @@ updates:
       - "dependencies"
       - "frontend"
     allow:
+<<<<<<< HEAD
       - dependency-type: "direct"
+=======
+      - dependency-type: "all"
+        update-type: "security"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
     commit-message:
       prefix: "security"
       include: "scope"
@@ -47,6 +65,10 @@ updates:
       # Ignore patch updates for development dependencies
       - dependency-name: "*"
         update-types: ["version-update:semver-patch"]
+<<<<<<< HEAD
+=======
+        dependency-type: "development"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
         
   # Enable updates for GitHub Actions
   - package-ecosystem: "github-actions"
@@ -58,4 +80,8 @@ updates:
       - "Nikhil-Kadapala"
     labels:
       - "ci-cd"
+<<<<<<< HEAD
       - "automation"
+=======
+      - "automation"
+>>>>>>> eff356f9b27adefa7f33d8785f960c0810be6870
