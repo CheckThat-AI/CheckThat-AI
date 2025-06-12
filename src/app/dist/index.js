@@ -1,5 +1,6 @@
 // server/index.ts
 import express2 from "express";
+import rateLimit from "express-rate-limit";
 
 // server/routes.ts
 import { createServer } from "http";
@@ -131,7 +132,13 @@ async function setupVite(app2, server) {
     appType: "custom"
   });
   app2.use(vite.middlewares);
-  app2.use("*", async (req, res, next) => {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    message: "Too many requests, please try again later.",
+  });
+
+  app2.use("*", limiter, async (req, res, next) => {
     const url = req.originalUrl;
     try {
       const clientTemplate = path2.resolve(
