@@ -1,0 +1,61 @@
+# Dependabot configuration file
+# Created: 2025-06-11
+# Author: Nikhil-Kadapala
+
+version: 2
+updates:
+  # Enable updates for Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    assignees:
+      - "Nikhil-Kadapala"
+    labels:
+      - "security"
+      - "dependencies"
+      - "python"
+    allow:
+      - dependency-type: "all"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+
+  # Enable updates for React+TypeScript dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    assignees:
+      - "Nikhil-Kadapala"
+    labels:
+      - "security"
+      - "dependencies"
+      - "frontend"
+    allow:
+      - dependency-type: "direct"
+    commit-message:
+      prefix: "security"
+      include: "scope"
+    ignore:
+      # Ignore patch updates for development dependencies
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+        
+  # Enable updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 5
+    assignees:
+      - "Nikhil-Kadapala"
+    labels:
+      - "ci-cd"
+      - "automation"
