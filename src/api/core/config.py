@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     def allowed_origins(self) -> List[str]:
         if self.env_type == "dev":
             return ["http://localhost:5173", "http://127.0.0.1:5173"]
-        return ["https://nikhil-kadapala.github.io"]
+        return ["https://nikhil-kadapala.github.io", "https://claimnorm.com", "https://www.claimnorm.com"]
     
     # API Keys (optional defaults)
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
