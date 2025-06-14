@@ -215,9 +215,9 @@ export default function ChatInterface() {
                       id="message-input"
                       ref={textareaRef}
                       className="flex-grow text-white resize-none border-0  
-                      bg-transparent min-h-[10px] max-h-[30px] 
+                      bg-transparent min-h-[10px] max-h-[200px] 
                       focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
-                      placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
+                      placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-y-auto"
                       placeholder="Type or paste your input text here..."
                       value={currentMessage}
                       onChange={handleTextareaChange}
@@ -391,10 +391,10 @@ export default function ChatInterface() {
                     id="message-input"
                     ref={textareaRef}
                     className="flex-grow text-white resize-none border-0 
-                    bg-transparent min-h-[10px] max-h-[30px]
+                    bg-transparent min-h-[10px] max-h-[200px]
                     focus:ring-0 focus:outline-none focus:border-0 
                     focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
-                    placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
+                    placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-y-auto"
                     placeholder="Type or paste your input text here..."
                     value={currentMessage}
                     onChange={handleTextareaChange}
