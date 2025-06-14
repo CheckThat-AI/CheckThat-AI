@@ -2,16 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { ModelOption, PromptStyleOption, FieldMapping } from '@shared/types';
-import { Play, PaperclipIcon, FileTextIcon, FileJsonIcon, FileSpreadsheetIcon, BarChart3Icon, InfoIcon } from 'lucide-react';
+import { PromptStyleOption, FieldMapping } from '@shared/types';
 import EvaluationResultsComponent from './EvaluationResults';
 import FieldMappingModal from './FieldMappingModal';
-import { motion } from 'framer-motion';
 import { defaultPrompts, sys_prompt } from '@shared/prompts';
 import { useToast } from '@/hooks/use-toast';
-import { isValidFileType } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -19,20 +14,18 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import './scrollbar-hide.css';
+
+// Import modular components
+import {
+  SystemMessageCard,
+  ModelSelectionCard,
+  PromptSelectionCard,
+  EvaluationMethodsCard,
+  EvaluationMetricsCard,
+  FileUploadCard,
+  EvaluationProgressCard
+} from './evaluation/index';
 
 // Add CSS for hiding scrollbars
 const scrollbarStyles = `
@@ -44,23 +37,6 @@ const scrollbarStyles = `
     scrollbar-width: none;
   }
 `;
-
-
-
-// Function to get the appropriate icon based on file extension
-const getFileIcon = (fileName: string) => {
-  const extension = fileName.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'csv':
-      return <FileSpreadsheetIcon className="h-3 w-3 mr-1" />;
-    case 'json':
-    case 'jsonl':
-      return <FileJsonIcon className="h-3 w-3 mr-1" />;
-    case 'txt':
-    default:
-      return <FileTextIcon className="h-3 w-3 mr-1" />;
-  }
-};
 
 export default function EvaluationInterface() {
   const {
@@ -79,20 +55,18 @@ export default function EvaluationInterface() {
     setCrossRefineIterations,
     stopEvaluation,
     logMessages,
-    setLogMessages
   } = useAppContext();
   
   const resultsRef = useRef<HTMLDivElement>(null);
   const [selectedPrompt, setSelectedPrompt] = useState<PromptStyleOption | null>(null);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
-  const [showSelfRefineInput, setShowSelfRefineInput] = useState(false);
-  const [showCrossRefineInput, setShowCrossRefineInput] = useState(false);
   const [selectedEvalMetric, setSelectedEvalMetric] = useState<string>('');
   const [showEvalMethodInfo, setShowEvalMethodInfo] = useState(false);
   const [selectedMethodInfo, setSelectedMethodInfo] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
   const [isCustomPromptSelected, setIsCustomPromptSelected] = useState(false);
   const [showFieldMappingModal, setShowFieldMappingModal] = useState(false);
+  
   // Use evaluationData.fieldMapping instead of local state
   const fieldMapping = evaluationData.fieldMapping || {
     inputText: null,
@@ -144,44 +118,7 @@ export default function EvaluationInterface() {
     });
     return providers;
   };
-  
-  const modelOptions = [
-    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B' },
-    { value: 'claude-3-7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
-    { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
-    { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },
-    { value: 'gpt-4.1-nano-2025-04-14', label: 'GPT-4.1 nano' },
-    { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash' },
-    { value: 'grok-3-latest', label: 'Grok 3 Beta' }
-  ];
-  
-  const promptStyleOptions = [
-    { value: 'Zero-shot', label: 'Zero-shot' },
-    { value: 'Few-shot', label: 'Few-shot' },
-    { value: 'Zero-shot-CoT', label: 'Zero-shot-CoT' },
-    { value: 'Few-shot-CoT', label: 'Few-shot-CoT' }
-  ];
-  
-  const evalMetricOptions: { value: string; label: string; description: string; category: string }[] = [
-    // Reference-based metrics (require ground truth/gold standard)
-    { value: 'accuracy', label: 'Accuracy', description: 'TP + TN / (TP + TN + FP + FN)', category: 'Reference-based' },
-    { value: 'precision', label: 'Precision', description: 'TP / (TP + FP)', category: 'Reference-based' },
-    { value: 'recall', label: 'Recall', description: 'TP / (TP + FN)', category: 'Reference-based' },
-    { value: 'f1-score', label: 'F1-Score', description: 'Harmonic mean of precision and recall', category: 'Reference-based' },
-    { value: 'exact-match', label: 'Exact Match', description: 'Binary exact string matching', category: 'Reference-based' },
-    
-    // Reference-less metrics (can work without ground truth)
-    { value: 'bleu', label: 'BLEU', description: 'Bilingual Evaluation Understudy for text similarity', category: 'Reference-less' },
-    { value: 'rouge', label: 'ROUGE', description: 'Recall-Oriented Understudy for Gisting Evaluation', category: 'Reference-less' },
-    { value: 'meteor', label: 'METEOR', description: 'Metric for Evaluation of Translation with Explicit ORdering', category: 'Reference-less' },
-    { value: 'bertscore', label: 'BERTScore', description: 'Semantic similarity using BERT embeddings', category: 'Reference-less' },
-    { value: 'cosine-similarity', label: 'Cosine Similarity', description: 'Cosine similarity between embeddings', category: 'Reference-less' }
-  ];
 
-  const referenceBased = evalMetricOptions.filter(m => m.category === 'Reference-based');
-  const referenceLess = evalMetricOptions.filter(m => m.category === 'Reference-less');
-  
   // Scroll to results when evaluation is completed
   useEffect(() => {
     if (progressStatus === 'completed' && resultsRef.current) {
@@ -206,11 +143,6 @@ export default function EvaluationInterface() {
     }
   };
 
-  const handlePromptPreview = (promptStyle: PromptStyleOption) => {
-    setSelectedPrompt(promptStyle);
-    setIsPromptModalOpen(true);
-  };
-
   // --- Output Log Modal State and Logic ---
   const [showLogModal, setShowLogModal] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
@@ -221,22 +153,6 @@ export default function EvaluationInterface() {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [logMessages, showLogModal]);
-
-  // Close numeric inputs when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Element;
-      if (!target.closest('[data-eval-method]')) {
-        setShowSelfRefineInput(false);
-        setShowCrossRefineInput(false);
-      }
-    };
-
-    if (showSelfRefineInput || showCrossRefineInput) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showSelfRefineInput, showCrossRefineInput]);
 
   // Handle Escape key for modal
   useEffect(() => {
@@ -252,52 +168,49 @@ export default function EvaluationInterface() {
     }
   }, [showLogModal]);
 
+  // Helper to check if API key is missing for a provider
+  const checkMissingApiKey = (provider: string): string | null => {
+    const keyMap = {
+      openai: openaiApiKey,
+      anthropic: anthropicApiKey,
+      gemini: geminiApiKey,
+      grok: grokApiKey
+    };
+    return keyMap[provider as keyof typeof keyMap]?.trim() ? null : provider;
+  };
+
+  // Check main model API keys
+  const validateMainModelKeys = (): string[] => {
+    const selectedProviders = getSelectedModelProviders();
+    return Array.from(selectedProviders)
+      .map(provider => checkMissingApiKey(provider as string))
+      .filter((provider): provider is string => Boolean(provider))
+      .map(provider => provider.charAt(0).toUpperCase() + provider.slice(1));
+  };
+
+  // Check Cross-Refine feedback model API keys
+  const validateFeedbackModelKeys = (): string[] => {
+    if (selectedEvalMethod !== 'CROSS-REFINE' || 
+        !evaluationData.crossRefineModel || 
+        evaluationData.crossRefineModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' ||
+        !evaluationData.selectedModels.length ||
+        getModelProvider(evaluationData.crossRefineModel) === getModelProvider(evaluationData.selectedModels[0])) {
+      return [];
+    }
+
+    const feedbackProvider = getModelProvider(evaluationData.crossRefineModel);
+    const missingKey = checkMissingApiKey(feedbackProvider);
+    return missingKey ? [`${missingKey.charAt(0).toUpperCase() + missingKey.slice(1)} (for feedback model)`] : [];
+  };
+
   // Validate API keys before starting evaluation
   const validateApiKeys = () => {
-    const selectedProviders = getSelectedModelProviders();
-    const missingKeys = [];
-    const missingFeedbackKeys = [];
+    const missingKeys = [...validateMainModelKeys(), ...validateFeedbackModelKeys()];
     
-    // Check main model API keys
-    if (selectedProviders.has('openai') && !openaiApiKey.trim()) {
-      missingKeys.push('OpenAI');
-    }
-    if (selectedProviders.has('anthropic') && !anthropicApiKey.trim()) {
-      missingKeys.push('Anthropic');
-    }
-    if (selectedProviders.has('gemini') && !geminiApiKey.trim()) {
-      missingKeys.push('Gemini');
-    }
-    if (selectedProviders.has('grok') && !grokApiKey.trim()) {
-      missingKeys.push('Grok');
-    }
-
-    // Check Cross-Refine feedback model API keys (only if different from main model provider)
-    if (selectedEvalMethod === 'CROSS-REFINE' && 
-        evaluationData.crossRefineModel && 
-        evaluationData.crossRefineModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' &&
-        evaluationData.selectedModels.length > 0 &&
-        getModelProvider(evaluationData.crossRefineModel) !== getModelProvider(evaluationData.selectedModels[0])) {
-      
-      const feedbackProvider = getModelProvider(evaluationData.crossRefineModel);
-      
-      if (feedbackProvider === 'openai' && !openaiApiKey.trim()) {
-        missingFeedbackKeys.push('OpenAI (for feedback model)');
-      } else if (feedbackProvider === 'anthropic' && !anthropicApiKey.trim()) {
-        missingFeedbackKeys.push('Anthropic (for feedback model)');
-      } else if (feedbackProvider === 'gemini' && !geminiApiKey.trim()) {
-        missingFeedbackKeys.push('Gemini (for feedback model)');
-      } else if (feedbackProvider === 'grok' && !grokApiKey.trim()) {
-        missingFeedbackKeys.push('Grok (for feedback model)');
-      }
-    }
-
-    const allMissingKeys = [...missingKeys, ...missingFeedbackKeys];
-    
-    if (allMissingKeys.length > 0) {
+    if (missingKeys.length > 0) {
       toast({
         title: "API Keys Required",
-        description: `Please provide API keys for: ${allMissingKeys.join(', ')}`,
+        description: `Please provide API keys for: ${missingKeys.join(', ')}`,
         variant: "destructive",
       });
       return false;
@@ -433,510 +346,80 @@ export default function EvaluationInterface() {
         </dialog>
       )}
 
-            <div className="flex flex-col h-full max-h-[calc(100vh-120px)]">
                 {/* Scrollable Middle Section */}
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 min-h-0">
           <div className="max-w-6xl w-full mx-auto space-y-4">
-            {/* Eval Mode System Message */}
-            <motion.div
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="px-2 py-4 bg-gray-700 border-0 shadow-xl border-blue-200 rounded-md mx-auto max-w-6xl w-full"
-            >
-              <p className="text-slate-300 text-center">
-                This is the batch mode interface for processing large datasets. If you wish to extract claims from a single source, please switch back to Chat mode.
-              </p>
-            </motion.div>
+          {/* System Message */}
+          <SystemMessageCard />
 
             {/* Claim Evaluation Card */}
-            <Card className="bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg">
-            <CardContent className="p-6 bg-gray-700 rounded-lg">
+          <Card className="border-slate-800 rounded-md shadow-2xl 
+          bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900">
+            <CardContent className="p-6">
               <h2 className="text-xl text-white font-semibold mb-6">Claim Evaluation</h2>
           
           {/* Model Selection Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Model</h3>
-            <div className="flex items-center space-x-4">
-              <Select 
-                value={evaluationData.selectedModels.length > 0 ? evaluationData.selectedModels[0] : ''}
-                onValueChange={(value) => {
-                  const newModel = value ? (value as ModelOption) : null;
-                  const selectedModels = newModel ? [newModel] : [];
-                  updateEvaluationData({ selectedModels });
-                  // If primary model is also cross-refine model, clear cross-refine model in evaluationData
-                  if (newModel && evaluationData.crossRefineModel && newModel === evaluationData.crossRefineModel) {
-                    updateEvaluationData({ crossRefineModel: null });
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[300px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
-                  <SelectValue placeholder="Select model" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                  {modelOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
-                      <span className="font-medium">{option.label}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* API Key Input - appears when paid model is selected */}
-              {evaluationData.selectedModels.length > 0 && evaluationData.selectedModels[0] !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm text-slate-300 whitespace-nowrap">
-                    {(() => {
-                      const selectedModel = evaluationData.selectedModels[0];
-                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
-                        return 'OpenAI API Key:';
-                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
-                        return 'Anthropic API Key:';
-                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
-                        return 'Gemini API Key:';
-                      } else if (['grok-3-latest'].includes(selectedModel)) {
-                        return 'Grok API Key:';
-                      }
-                      return 'API Key:';
-                    })()}
-                  </label>
-                  <input
-                    type="password"
-                    value={(() => {
-                      const selectedModel = evaluationData.selectedModels[0];
-                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
-                        return openaiApiKey;
-                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
-                        return anthropicApiKey;
-                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
-                        return geminiApiKey;
-                      } else if (['grok-3-latest'].includes(selectedModel)) {
-                        return grokApiKey;
-                      }
-                      return '';
-                    })()}
-                    onChange={(e) => {
-                      const selectedModel = evaluationData.selectedModels[0];
-                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
-                        setOpenaiApiKey(e.target.value);
-                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
-                        setAnthropicApiKey(e.target.value);
-                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
-                        setGeminiApiKey(e.target.value);
-                      } else if (['grok-3-latest'].includes(selectedModel)) {
-                        setGrokApiKey(e.target.value);
-                      }
-                    }}
-                    placeholder={(() => {
-                      const selectedModel = evaluationData.selectedModels[0];
-                      if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(selectedModel)) {
-                        return 'sk-...';
-                      } else if (['claude-3-7-sonnet-latest'].includes(selectedModel)) {
-                        return 'sk-ant-...';
-                      } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(selectedModel)) {
-                        return 'AI...';
-                      } else if (['grok-3-latest'].includes(selectedModel)) {
-                        return 'xai-...';
-                      }
-                      return 'Enter API key...';
-                    })()}
-                    className="w-[300px] px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Security Notice - appears when API key is shown */}
-            {evaluationData.selectedModels.length > 0 && evaluationData.selectedModels[0] !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' && (
-              <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-600 max-w-fit">
-                <p className="text-xs text-slate-400">
-                  🔒 API keys are transmitted securely and are not stored. They're only used for your current evaluation session.
-                </p>
-              </div>
-            )}
-          </div>
+              <ModelSelectionCard
+                evaluationData={evaluationData}
+                updateEvaluationData={updateEvaluationData}
+                openaiApiKey={openaiApiKey}
+                setOpenaiApiKey={setOpenaiApiKey}
+                anthropicApiKey={anthropicApiKey}
+                setAnthropicApiKey={setAnthropicApiKey}
+                geminiApiKey={geminiApiKey}
+                setGeminiApiKey={setGeminiApiKey}
+                grokApiKey={grokApiKey}
+                setGrokApiKey={setGrokApiKey}
+              />
           
           {/* Prompt Style Selection Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Prompt Styles</h3>
-            <p className="text-sm text-slate-300 mb-4">
-              Select a prompt style for evaluation:
-            </p>
-            
-            <div className="flex items-center space-x-4 mb-4">
-              <Select 
-                value={(() => {
-                  if (isCustomPromptSelected) return 'Custom';
-                  if (evaluationData.selectedPromptStyles.length > 0) return evaluationData.selectedPromptStyles[0];
-                  return '';
-                })()}
-                onValueChange={(value) => {
-                  if (value === 'Custom') {
-                    setIsCustomPromptSelected(true);
-                    updateEvaluationData({ selectedPromptStyles: [] });
-                  } else {
-                    setIsCustomPromptSelected(false);
-                    const newPromptStyle = value as PromptStyleOption;
-                    updateEvaluationData({ selectedPromptStyles: [newPromptStyle] });
-                  }
-                }}
-              >
-                <SelectTrigger className="w-[300px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
-                  <SelectValue placeholder="Select prompt" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                  {promptStyleOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
-                      <span className="font-medium">{option.label}</span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="Custom" className="text-white focus:bg-gray-600 focus:text-white">
-                    <span className="font-medium">Custom</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <PromptSelectionCard
+                evaluationData={evaluationData}
+                updateEvaluationData={updateEvaluationData}
+                isCustomPromptSelected={isCustomPromptSelected}
+                setIsCustomPromptSelected={setIsCustomPromptSelected}
+                setSelectedPrompt={setSelectedPrompt}
+                setIsPromptModalOpen={setIsPromptModalOpen}
+                setShowSystemPrompt={setShowSystemPrompt}
+              />
 
-              {/* View Prompt Button - appears when default prompt is selected */}
-              {evaluationData.selectedPromptStyles.length > 0 && !isCustomPromptSelected && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
-                  onClick={() => {
-                    setSelectedPrompt(evaluationData.selectedPromptStyles[0]);
-                    setIsPromptModalOpen(true);
-                    setShowSystemPrompt(false);
-                  }}
-                >
-                  View Prompt
-                </Button>
-              )}
-            </div>
+              {/* Evaluation Methods Section */}
+              <EvaluationMethodsCard
+                selectedEvalMethod={selectedEvalMethod}
+                setSelectedEvalMethod={setSelectedEvalMethod}
+                selfRefineIterations={selfRefineIterations}
+                setSelfRefineIterations={setSelfRefineIterations}
+                crossRefineIterations={crossRefineIterations}
+                setCrossRefineIterations={setCrossRefineIterations}
+                evaluationData={evaluationData}
+                updateEvaluationData={updateEvaluationData}
+                setSelectedMethodInfo={setSelectedMethodInfo}
+                setShowEvalMethodInfo={setShowEvalMethodInfo}
+                getModelProvider={getModelProvider}
+                openaiApiKey={openaiApiKey}
+                setOpenaiApiKey={setOpenaiApiKey}
+                anthropicApiKey={anthropicApiKey}
+                setAnthropicApiKey={setAnthropicApiKey}
+                geminiApiKey={geminiApiKey}
+                setGeminiApiKey={setGeminiApiKey}
+                grokApiKey={grokApiKey}
+                setGrokApiKey={setGrokApiKey}
+              />
 
-            {/* Custom Prompt Section - only appears when Custom is selected */}
-            {isCustomPromptSelected && (
-              <div>
-                <h4 className="text-md font-medium text-slate-300 mb-2">Custom Prompt</h4>
-                <textarea
-                  className="w-full p-3 border border-gray-800 bg-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  rows={4}
-                  placeholder="Enter your custom prompt here..."
-                  value={evaluationData.customPrompt || ''}
-                  onChange={(e) => updateEvaluationData({ customPrompt: e.target.value })}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Eval Methods Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Iterative Refinement Methods (Optional)</h3>
-            <div className="flex items-center space-x-4">
-              <Select
-                value={selectedEvalMethod || 'STANDARD'}
-                onValueChange={(value) => {
-                  const newValue = value === 'STANDARD' ? null : value as 'SELF-REFINE' | 'CROSS-REFINE';
-                  setSelectedEvalMethod(newValue);
-                  setShowSelfRefineInput(false);
-                  setShowCrossRefineInput(false);
-                }}
-              >
-                <SelectTrigger className="w-[400px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                  <SelectValue placeholder="Select evaluation method" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                  <SelectItem value="STANDARD" className="text-white focus:bg-gray-600 focus:text-white">
-                    <span className="font-medium">Standard (No Refinement)</span>
-                  </SelectItem>
-                  <SelectItem value="SELF-REFINE" className="text-white focus:bg-gray-600 focus:text-white">
-                    <span className="font-medium">SELF-REFINE</span>
-                  </SelectItem>
-                  <SelectItem value="CROSS-REFINE" className="text-white focus:bg-gray-600 focus:text-white">
-                    <span className="font-medium">CROSS-REFINE</span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Info Button - appears when refinement method is selected */}
-              {selectedEvalMethod && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600 px-2 py-1"
-                  onClick={() => {
-                    if (selectedEvalMethod === 'SELF-REFINE' || selectedEvalMethod === 'CROSS-REFINE') {
-                      setSelectedMethodInfo(selectedEvalMethod);
-                    }
-                    setShowEvalMethodInfo(true);
-                  }}
-                >
-                  <InfoIcon className="h-4 w-4" />
-                </Button>
-              )}
-
-              {/* Iteration Selector - appears when refinement method is selected */}
-              {selectedEvalMethod && (
-                <div className="flex items-center space-x-2">
-                  <label htmlFor="iterations-input" className="text-sm text-slate-300 whitespace-nowrap">
-                    Iterations:
-                  </label>
-                  <div className="relative">
-                    <input
-                      id="iterations-input"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations : crossRefineIterations}
-                      onChange={(e) => {
-                        const value = Math.max(1, Math.min(10, parseInt(e.target.value) || 1));
-                        if (selectedEvalMethod === 'SELF-REFINE') {
-                          setSelfRefineIterations(value);
-                        } else {
-                          setCrossRefineIterations(value);
-                        }
-                      }}
-                      className="w-16 px-2 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary text-center"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Cross-Refine Model Selector - appears when CROSS-REFINE is selected */}
-              {selectedEvalMethod === 'CROSS-REFINE' && (
-                <div className="flex items-center space-x-2">
-                  <label htmlFor="feedback-model-select" className="text-sm text-slate-300 whitespace-nowrap">
-                    Feedback Model:
-                  </label>
-                  <Select
-                    value={evaluationData.crossRefineModel || ''}
-                    onValueChange={(value) => {
-                      const crossRefineModel = value ? (value as ModelOption) : null;
-                      updateEvaluationData({ crossRefineModel });
-                    }}
-                  >
-                    <SelectTrigger className="w-[180px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
-                      <SelectValue placeholder="Select Model B" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                      {modelOptions
-                        .filter(option => 
-                          !evaluationData.selectedModels.includes(option.value as ModelOption)
-                        )
-                        .map((option) => (
-                          <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
-                            {option.label}
-                          </SelectItem>
-                        ))
-                      }
-                    </SelectContent>
-                  </Select>
-
-                  {/* Cross-Refine API Key Input - appears when paid feedback model from different family is selected */}
-                  {evaluationData.crossRefineModel && 
-                   evaluationData.crossRefineModel !== 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' &&
-                   evaluationData.selectedModels.length > 0 &&
-                   getModelProvider(evaluationData.crossRefineModel) !== getModelProvider(evaluationData.selectedModels[0]) && (
-                    <div className="flex items-center space-x-2">
-                      <label className="text-sm text-slate-300 whitespace-nowrap">
-                        {(() => {
-                          const feedbackModel = evaluationData.crossRefineModel;
-                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
-                            return 'OpenAI API Key:';
-                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
-                            return 'Anthropic API Key:';
-                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
-                            return 'Gemini API Key:';
-                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
-                            return 'Grok API Key:';
-                          }
-                          return 'API Key:';
-                        })()}
-                      </label>
-                      <input
-                        type="password"
-                        value={(() => {
-                          const feedbackModel = evaluationData.crossRefineModel;
-                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
-                            return openaiApiKey;
-                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
-                            return anthropicApiKey;
-                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
-                            return geminiApiKey;
-                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
-                            return grokApiKey;
-                          }
-                          return '';
-                        })()}
-                        onChange={(e) => {
-                          const feedbackModel = evaluationData.crossRefineModel;
-                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
-                            setOpenaiApiKey(e.target.value);
-                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
-                            setAnthropicApiKey(e.target.value);
-                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
-                            setGeminiApiKey(e.target.value);
-                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
-                            setGrokApiKey(e.target.value);
-                          }
-                        }}
-                        placeholder={(() => {
-                          const feedbackModel = evaluationData.crossRefineModel;
-                          if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(feedbackModel!)) {
-                            return 'sk-...';
-                          } else if (['claude-3-7-sonnet-latest'].includes(feedbackModel!)) {
-                            return 'sk-ant-...';
-                          } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(feedbackModel!)) {
-                            return 'AI...';
-                          } else if (['grok-3-latest'].includes(feedbackModel!)) {
-                            return 'xai-...';
-                          }
-                          return 'Enter API key...';
-                        })()}
-                        className="w-[200px] px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Eval Metrics Selection Section */}
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-white mb-3">Eval Metrics</h3>
-            <Select
-              value={selectedEvalMetric}
-              onValueChange={(value) => {
-                setSelectedEvalMetric(value);
-                updateEvaluationData({ evalMetric: value });
-              }}
-            >
-              <SelectTrigger className="w-[450px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
-                <BarChart3Icon className="h-4 w-4 mr-2 flex-shrink-0" />
-                <SelectValue placeholder="Select evaluation metric" />
-              </SelectTrigger>
-              <SelectContent 
-                side="right" 
-                align="start"
-                className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none min-w-[500px] max-h-[300px] overflow-y-auto"
-              >
-                {/* Reference-based metrics */}
-                <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide bg-gray-600">
-                  Reference-based
-                </div>
-                {referenceBased.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value} 
-                    className="text-white focus:bg-gray-800 focus:text-white pl-8 pr-3 py-3 min-h-[60px] bg-gray-700"
-                  >
-                    <div className="flex flex-col text-white w-full">
-                      <span className="font-medium">{option.label}</span>
-                      <span className="text-xs text-slate-400 font-normal leading-tight mt-1 break-words">{option.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-                
-                {/* Separator */}
-                <div className="mx-2 my-1 border-t border-slate-600"></div>
-                
-                {/* Reference-less metrics */}
-                <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wide bg-gray-600">
-                  Reference-less
-                </div>
-                {referenceLess.map((option) => (
-                  <SelectItem 
-                    key={option.value} 
-                    value={option.value} 
-                    className="text-white focus:bg-gray-800 focus:text-white pl-8 pr-3 py-3 min-h-[60px] bg-gray-700"
-                  >
-                    <div className="flex flex-col text-white w-full">
-                      <span className="font-medium">{option.label}</span>
-                      <span className="text-xs text-slate-400 font-normal leading-tight mt-1 break-words">{option.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+              {/* Evaluation Metrics Section */}
+              <EvaluationMetricsCard
+                selectedEvalMetric={selectedEvalMetric}
+                setSelectedEvalMetric={setSelectedEvalMetric}
+                updateEvaluationData={updateEvaluationData}
+              />
 
           {/* File Upload Section */}
-          <div className="mb-8">
-            <div className="mt-6">
-              <h4 className="text-md font-medium text-white mb-2">Upload Dataset</h4>
-              <div className="flex items-center space-x-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="flex items-center text-slate-300 hover:text-primary-600 bg-gray-800 hover:bg-gray-600"
-                        onClick={() => document.getElementById('file-upload')?.click()}
-                      >
-                        <PaperclipIcon className="h-4 w-4 mr-1" />
-                        <span className="text-sm">Upload</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Accepted formats: CSV, JSON, JSONL</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                {evaluationData.file && (
-                  <div className="flex flex-col space-y-2">
-                    <div className="text-sm text-slate-500 flex items-center">
-                      {getFileIcon(evaluationData.file.name)}
-                      <span>{evaluationData.file.name}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="ml-3 bg-gray-700 hover:bg-gray-600 text-white border-slate-600 text-xs px-2 py-1"
-                        onClick={() => setShowFieldMappingModal(true)}
-                      >
-                        Edit Mapping
-                      </Button>
-                    </div>
-                    {fieldMapping.inputText && (
-                      <div className="text-xs text-slate-400 ml-4">
-                        Input: "{fieldMapping.inputText}"
-                        {fieldMapping.expectedOutput && `, Expected Output: "${fieldMapping.expectedOutput}"`}
-                        {fieldMapping.actualOutput && `, Actual Output: "${fieldMapping.actualOutput}"`}
-                        {fieldMapping.context && `, Context: "${fieldMapping.context}"`}
-                        {fieldMapping.retrievalContext && `, Retrieval Context: "${fieldMapping.retrievalContext}"`}
-                        {fieldMapping.metadata && `, Metadata: "${fieldMapping.metadata}"`}
-                        {fieldMapping.comments && `, Comments: "${fieldMapping.comments}"`}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              <input  
-                type="file"
-                id="file-upload"
-                className="hidden"
-                accept=".csv,.json,.jsonl,text/csv,application/json,application/x-jsonlines"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  if (file && !isValidFileType(file)) {
-                    toast({
-                      title: "Invalid File Type",
-                      description: "Please upload only CSV, JSON, or JSONL files.",
-                      variant: "destructive",
-                    });
-                    e.target.value = ''; // Reset input
-                    return;
-                  }
-                  if (file) {
-                    updateEvaluationData({ file });
-                    setShowFieldMappingModal(true);
-                  } else {
-                    updateEvaluationData({ file: null, fieldMapping: null });
-                  }
-                }}
+              <FileUploadCard
+                evaluationData={evaluationData}
+                updateEvaluationData={updateEvaluationData}
+                fieldMapping={fieldMapping}
+                setShowFieldMappingModal={setShowFieldMappingModal}
               />
-            </div>
-          </div>
           
               {/* Visualization Section */}
               <div ref={resultsRef}>
@@ -965,112 +448,19 @@ export default function EvaluationInterface() {
           </Card>
 
             {/* Evaluation Progress Section */}
-            <Card className="bg-gradient-to-t from-gray-800 to-gray-700 border border-gray-800 shadow-lg">
-              <CardContent className="p-6 bg-gray-700 rounded-lg">
-                {progressStatus === 'pending' ? (
-                  /* Initial state - Just the start button */
-                  <div className="flex flex-col items-center space-y-4">
-                    <h3 className="text-lg font-medium text-white">Ready to Evaluate</h3>
-                    <p className="text-sm text-slate-300 text-center">
-                      Click the button below to start your batch evaluation
-                    </p>
-                    <Button
-                      type="button"
-                      onClick={handleStartEvaluation}
-                      disabled={
-                        evaluationData.selectedModels.length === 0 || 
-                        evaluationData.selectedPromptStyles.length === 0 || 
-                        !evaluationData.file
-                      }
-                      className="bg-primary hover:bg-primary/90 text-white px-8 py-3 text-lg"
-                    >
-                      <Play className="h-5 w-5 mr-2" />
-                      Start Evaluation
-                    </Button>
-                  </div>
-                ) : (
-                  /* Progress state - Animated progress bar and controls */
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, ease: "easeOut" }}
-                  >
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="text-lg font-medium text-white">Evaluation Progress</h3>
-                      <span className="text-sm font-medium text-slate-300">{progress}%</span>
-                    </div>
-                    
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.3, delay: 0.2 }}
-                      className="origin-left"
-                    >
-                      <Progress value={progress} className="h-3 mb-2" />
-                    </motion.div>
-                    
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.3, delay: 0.4 }}
-                      className="flex justify-between items-center mt-2"
-                    >
-                      <span className="text-sm text-slate-300">{getProgressStatusText()}</span>
-                      <div className="flex space-x-2">
-                        {progressStatus === 'processing' ? (
-                          <>
-                            <Button
-                              type="button"
-                              onClick={stopEvaluation}
-                              variant="destructive"
-                              className="bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              Stop Evaluation
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={() => setShowLogModal(true)}
-                              variant="outline"
-                              className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
-                            >
-                              View Terminal
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              type="button"
-                              onClick={handleStartEvaluation}
-                              className="bg-gray-800 hover:bg-gray-900 text-white"
-                            >
-                              Restart Evaluation
-                            </Button>
-                            <Button
-                              type="button"
-                              onClick={() => setShowLogModal(true)}
-                              variant="outline"
-                              className="bg-gray-800 hover:bg-gray-700 text-white border-slate-600"
-                            >
-                              View Terminal
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Fixed Footer - Additional buttons if needed */}
-        <div className="flex-shrink-0 p-4">
-          {/* This can remain empty or contain fixed footer content */}
+          <EvaluationProgressCard
+            progressStatus={progressStatus}
+            progress={progress}
+            evaluationData={evaluationData}
+            handleStartEvaluation={handleStartEvaluation}
+            stopEvaluation={stopEvaluation}
+            setShowLogModal={setShowLogModal}
+            getProgressStatusText={getProgressStatusText}
+          />
         </div>
       </div>
 
-            {/* Prompt Preview Modal */}
+      {/* Prompt Preview Modal */}
       <Dialog open={isPromptModalOpen} onOpenChange={(open) => {
         setIsPromptModalOpen(open);
         if (!open) {
@@ -1080,7 +470,7 @@ export default function EvaluationInterface() {
         <DialogContent 
           className="max-w-3xl max-h-[80vh]  
           flex-1 flex-col overflow-auto scrollbar-hide
-          bg-gray-800 
+          bg-gradient-to-r from-black via-zinc-950 to-cardbg-900 
           text-slate-200">
           <DialogHeader>
             <div className="flex items-center justify-between">
@@ -1105,7 +495,8 @@ export default function EvaluationInterface() {
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                className="bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900 
+                hover:bg-zinc-950 hover:text-white text-white border-slate-800"
                 onClick={() => setShowSystemPrompt(!showSystemPrompt)}
               >
                 {showSystemPrompt ? 'View Prompt' : 'View System Prompt'}
@@ -1113,7 +504,8 @@ export default function EvaluationInterface() {
             </div>
           </DialogHeader>
           <div className="mt-4 flex-1 overflow-auto">
-            <pre className="bg-gray-700 text-slate-200 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-sm">
+            <pre className="bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900 text-slate-200 p-4 
+            border border-slate-800 shadow-xl rounded-lg overflow-x-auto whitespace-pre-wrap font-mono text-sm">
               {(() => {
                 if (showSystemPrompt) {
                   return sys_prompt;
@@ -1152,8 +544,8 @@ export default function EvaluationInterface() {
                 <div>
                   <h4 className="text-sm font-medium text-white mb-2">Benefits:</h4>
                   <ul className="space-y-1">
-                    {evalMethodDescriptions[selectedMethodInfo].benefits.map((benefit, index) => (
-                      <li key={index} className="text-sm text-slate-300 flex items-center">
+                    {evalMethodDescriptions[selectedMethodInfo].benefits.map((benefit) => (
+                      <li key={benefit} className="text-sm text-slate-300 flex items-center">
                         <span className="text-green-400 mr-2">•</span>
                         {benefit}
                       </li>

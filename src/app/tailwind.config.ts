@@ -1,3 +1,6 @@
+import tailwindcssAnimate from "tailwindcss-animate";
+import colors from "tailwindcss/colors";
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -11,6 +14,30 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       colors: {
+        gray: {
+          ...colors.gray,
+          700: "#374151",
+          800: "#1f2937",
+        },
+        slate: {
+          ...colors.slate,
+          600: "#475569",
+          700: "#334155",
+        },
+        cardbg: {
+          500: "#262626",
+          600: "#1e1e1e",
+          700: "#181818",
+          800: "#121212",
+          900: "#0e0e0e",
+        },
+        apiwarn: {
+          500: "#72556F",
+          600: "#60455A",
+          700: "#4E3545",
+          800: "#3C2530",
+          900: "#2A151B",
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {
@@ -86,5 +113,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;

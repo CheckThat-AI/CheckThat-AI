@@ -135,6 +135,9 @@ def run_evaluation_with_progress(
         # Flush any remaining logs
         final_flush()
         
+        # Send final result
+        sync_send_update("complete", {"result": result})
+        
     except Exception as e:
         final_flush()
         sync_send_update("error", {"message": f"Evaluation failed: {str(e)}"})

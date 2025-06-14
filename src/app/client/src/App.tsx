@@ -4,21 +4,20 @@ import { Toaster } from '@/components/ui/toaster';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { queryClient } from './lib/queryClient';
-import { AppProvider } from '@/contexts/AppContext';
+import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import ChatInterface from '@/components/ChatInterface';
 import EvaluationInterface from '@/components/EvaluationInterface';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import NotFound from '@/pages/not-found';
-import { useAppContext } from '@/contexts/AppContext';
 import './components/scrollbar-hide.css';
 
 function AppLayout() {
   const { mode } = useAppContext();
   
   return (
-    <div className="flex flex-col min-h-screen bg-gray-700">
+    <div className="flex flex-col min-h-screen bg-gradient-to-b from-black to-black">
       <Header />
       
       <main className="flex-1 flex flex-col">
