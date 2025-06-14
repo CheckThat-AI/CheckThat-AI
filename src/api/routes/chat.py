@@ -9,7 +9,7 @@ project_root = Path(__file__).parent.parent.parent.parent
 sys.path.append(str(project_root))
 
 from src.utils.get_model_response import get_model_response
-from src.utils.prompts import sys_prompt, few_shot_CoT_prompt
+from src.utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
 from ..models.requests import ChatRequest
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -57,11 +57,11 @@ async def chat_interface(request: ChatRequest):
         
         if request.api_key:
             os.environ[f"{api_provider}_API_KEY"] = request.api_key
-
+        
         def stream_response():
             for chunk in get_model_response(
                 model=request.model,
-                user_prompt=f"{few_shot_CoT_prompt}\n\n{request.user_query}",
+                user_prompt=f"{few_shot_CoT_prompt}\n{chat_guide}\n\n{request.user_query}",
                 sys_prompt=sys_prompt,
                 gen_type="chat"
             ):
