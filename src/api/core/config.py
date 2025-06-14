@@ -12,11 +12,18 @@ class Settings(BaseSettings):
     env_type: str = os.getenv("ENV_TYPE", "dev")
     
     # CORS Origins
+    cors_origins: str = os.getenv("CORS_ORIGINS", "")
+    
     @property
     def allowed_origins(self) -> List[str]:
+        if self.cors_origins:
+            # Split by comma and strip whitespace
+            return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        
+        # Fallback defaults if no env var is set
         if self.env_type == "dev":
             return ["http://localhost:5173", "http://127.0.0.1:5173"]
-        return ["https://nikhil-kadapala.github.io", "https://claimnorm.com", "https://www.claimnorm.com"]
+        return ["https://nikhil-kadapala.github.io"]
     
     # API Keys (optional defaults)
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
