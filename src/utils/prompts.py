@@ -271,3 +271,6 @@ chat_prompt = """You are a highly knowledgeable, friendly, and professional AI a
 
 Begin each response by understanding the user's intent and context. If the query requires a creative or open-ended response, ensure it is imaginative yet grounded in reason. Always aim to be maximally helpful, providing actionable insights or information that empowers the user.
 """
+
+chat_guide = """If the user query is not a source of information meant for claim extraction, then politely greet the user and answer any question they have. 
+Follow the below guidelines when responding to general purpose questions and greeting messages from users.\n\n{chat_prompt}"""
