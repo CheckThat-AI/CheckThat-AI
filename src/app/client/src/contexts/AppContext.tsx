@@ -40,8 +40,8 @@ export interface AppContextType {
   resetEvaluation: () => void;
   
   // Evaluation methods
-  selectedEvalMethod: string | null;
-  setSelectedEvalMethod: (method: string | null) => void;
+  selectedEvalMethod: 'SELF-REFINE' | 'CROSS-REFINE' | null;
+  setSelectedEvalMethod: (method: 'SELF-REFINE' | 'CROSS-REFINE' | null) => void;
   selfRefineIterations: number;
   setSelfRefineIterations: (iterations: number) => void;
   crossRefineIterations: number;
@@ -72,7 +72,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: generateId(),
-      content: "Hello! I'm your claim normalization assistant. You can provide your source text to analyze.",
+      content: "🤖 Hello! I'm your claim normalization assistant. You can provide your source text to analyze.",
       sender: 'system',
       timestamp: new Date()
     }
@@ -85,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
   
   // Evaluation methods state
-  const [selectedEvalMethod, setSelectedEvalMethod] = useState<string | null>(null);
+  const [selectedEvalMethod, setSelectedEvalMethod] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
   const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
   const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
   
@@ -280,17 +280,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const websocket = new WebSocket(wsUrl);
       
       websocket.onopen = () => {
-        setLogMessages(prev => [...prev, `> Connected to evaluation service`]);
+        setLogMessages(prev => [...prev, `> Connected to evaluation service (Session: ${sessionId})`]);
         
         // Calculate iterations based on selected eval method
-        const iterations = selectedEvalMethod === 'SELF-REFINE' ? selfRefineIterations :
-                          selectedEvalMethod === 'CROSS-REFINE' ? crossRefineIterations : 0;
+        let iterations = 0;
+        if (selectedEvalMethod === 'SELF-REFINE') {
+          iterations = selfRefineIterations;
+        } else if (selectedEvalMethod === 'CROSS-REFINE') {
+          iterations = crossRefineIterations;
+        }
         
         // Convert file to base64
         const reader = new FileReader();
         reader.onload = () => {
           const fileContent = reader.result as string;
           const base64Content = fileContent.split(',')[1]; // Remove data:... prefix
+          
+          // Check file size and warn user if it's large
+          const fileSizeInMB = evaluationData.file!.size / (1024 * 1024);
+          const base64SizeInMB = (base64Content.length * 0.75) / (1024 * 1024); // Base64 is ~33% larger
+          
+          if (fileSizeInMB > 2) {
+            setLogMessages(prev => [...prev, `> Warning: Large file detected (${fileSizeInMB.toFixed(1)}MB). This may cause connection issues.`]);
+            
+            if (fileSizeInMB > 5) {
+              setLogMessages(prev => [...prev, `> Consider reducing file size or splitting into smaller chunks.`]);
+            }
+          }
           
           // Prepare evaluation data
           const evaluationPayload = {
@@ -312,8 +328,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }
           };
           
+          setLogMessages(prev => [...prev, `> Sending evaluation request...`]);
           // Send evaluation request
           websocket.send(JSON.stringify(evaluationPayload));
+        };
+        
+        reader.onerror = () => {
+          setLogMessages(prev => [...prev, `✗ Failed to read file`]);
+          setProgressStatus('error');
         };
         
         reader.readAsDataURL(evaluationData.file!);
@@ -343,8 +365,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
           case 'status':
             // Add status updates with different prefix
             setLogMessages(prev => [...prev, `> ${message.data.message}`]);
-            if (message.data.message.includes('stopped')) {
+            if (message.data.message.includes('stopped') || message.data.message.includes('cancelled')) {
               setProgressStatus('error');
+              setLogMessages(prev => [...prev, `✗ Evaluation stopped`]);
+              websocket.close(1000, 'Evaluation stopped');
+              
+              toast({
+                title: "Evaluation Stopped",
+                description: "The evaluation has been stopped.",
+                variant: "default",
+              });
             }
             break;
             
@@ -407,8 +437,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
       };
       
-      websocket.onclose = () => {
-        setLogMessages(prev => [...prev, `> Disconnected from evaluation service`]);
+      websocket.onclose = (event) => {
+        // Handle specific close codes
+        if (event.code === 1009) {
+          setLogMessages(prev => [...prev, `✗ File too large for WebSocket transmission`]);
+          setLogMessages(prev => [...prev, `> Try using a smaller file (< 2MB) or reduce the number of rows`]);
+          setProgressStatus('error');
+          toast({
+            title: "File Too Large",
+            description: "Please use a smaller file (< 2MB) or reduce the dataset size.",
+            variant: "destructive",
+          });
+        } else if (event.code !== 1000 && progressStatus !== 'completed') {
+          setLogMessages(prev => [...prev, `> Connection closed unexpectedly (code: ${event.code})`]);
+          if (progressStatus === 'processing') {
+            setProgressStatus('error');
+            toast({
+              title: "Connection Lost",
+              description: "Connection to evaluation service was lost.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          setLogMessages(prev => [...prev, `> Disconnected from evaluation service`]);
+        }
         setWs(null);
       };
       
@@ -429,12 +481,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Function to stop evaluation
   const stopEvaluation = () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
+      // Send stop message
       ws.send(JSON.stringify({ type: 'stop_evaluation' }));
+      
+      // Update state immediately
       setProgressStatus('error');
+      setLogMessages(prev => [...prev, `✗ Evaluation stopped by user`]);
+      
+      // Close WebSocket connection after a short delay to allow server to process stop message
+      setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close(1000, 'Evaluation stopped by user');
+        }
+      }, 500);
       
       toast({
         title: "Evaluation Stopped",
-        description: "The evaluation has been stopped.",
+        description: "The evaluation has been stopped successfully.",
+        variant: "default",
+      });
+    } else {
+      // If WebSocket is not connected, just update the state
+      setProgressStatus('error');
+      setLogMessages(prev => [...prev, `✗ Evaluation stopped (no active connection)`]);
+      
+      toast({
+        title: "Evaluation Stopped",
+        description: "The evaluation has been stopped successfully.",
         variant: "default",
       });
     }
