@@ -5,21 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatMarkdown } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { 
-  SendIcon,
+
+import {
   KeyIcon,
   EyeIcon,
   EyeOffIcon,
   InfoIcon,
   ArrowUpIcon
 } from 'lucide-react';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
 import {
   Select,
   SelectContent,
@@ -37,8 +31,7 @@ export default function ChatInterface() {
   const { 
     messages, 
     currentMessage, 
-    setCurrentMessage, 
-    sendMessage,
+    setCurrentMessage,
     selectedModel,
     setSelectedModel,
     apiKey,
@@ -47,7 +40,6 @@ export default function ChatInterface() {
   } = useAppContext();
 
   const [showApiKey, setShowApiKey] = useState(false);
-  const { toast } = useToast();
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -160,7 +152,7 @@ export default function ChatInterface() {
       // After streaming is done, parse and clean up
       try {
         const parsed = JSON.parse(accumulatedContent);
-        const cleanText = parsed.claim || parsed.normalizedClaim || parsed.result || accumulatedContent;
+        const cleanText = parsed.claim ?? parsed.normalizedClaim ?? parsed.result ?? accumulatedContent;
         setMessages(prev => prev.map(msg =>
           msg.id === tempMessageId
             ? { ...msg, content: cleanText, isStreaming: false }
@@ -212,15 +204,18 @@ export default function ChatInterface() {
               </div>
             )}
             {/* Input area */}
-            <Card className="scrollbar-hide bg-transparent border-0 shadow-none w-full max-w-3xl mx-auto">
-              <CardContent className="scrollbar-hide p-4 bg-gray-700 rounded-lg">
+            <Card className="scrollbar-hide bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900 
+              border border-slate-800 rounded-xl shadow-2xl 
+              w-full max-w-3xl mx-auto">
+              <CardContent className="scrollbar-hide p-4 bg-transparent">
                 <form onSubmit={handleSubmit} className="flex flex-col space-y-3">
-                  <div className="scrollbar-hide flex flex-col border border-gray-800 rounded-lg p-2 gap-2 bg-gradient-to-b from-gray-600 to-gray-700">
+                  <div className="scrollbar-hide flex flex-col border-0 border-slate-800 rounded-lg p-2 gap-2
+                  bg-transparent">
                     <Textarea
                       id="message-input"
                       ref={textareaRef}
                       className="flex-grow text-white resize-none border-0  
-                      bg-transparent min-h-[40px] max-h-[200px] 
+                      bg-transparent min-h-[10px] max-h-[30px] 
                       focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
                       placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
                       placeholder="Type or paste your input text here..."
@@ -238,12 +233,16 @@ export default function ChatInterface() {
                             setApiKey('');
                           }}
                         >
-                          <SelectTrigger className="w-[200px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                          <SelectTrigger className="w-[200px] bg-cardbg-900 text-white border-slate-800 
+                          focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
+                          data-[state=open]:ring-0 data-[state=open]:outline-none"
+                          >
                             <SelectValue placeholder="Select model" />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                          <SelectContent className="bg-cardbg-900 border-slate-800 
+                          focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
                             {modelOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                              <SelectItem key={option.value} value={option.value} className="text-white focus:bg-cyan-900 focus:text-white">
                                 {option.label}
                               </SelectItem>
                             ))}
@@ -259,7 +258,8 @@ export default function ChatInterface() {
                                 placeholder="🔒 Enter your API Key here"
                                 value={apiKey}
                                 onChange={(e) => setApiKey(e.target.value)}
-                                className="pl-9 pr-9 w-[250px] bg-gray-700 text-white border-slate-600 placeholder:text-slate-400 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                                className="pl-9 pr-9 w-[250px] bg-cardbg-900 text-white border-slate-800 placeholder:text-slate-400 
+                                focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                               />
                               <button
                                 type="button"
@@ -280,7 +280,7 @@ export default function ChatInterface() {
                         <div className="relative">
                           <Button
                             type="submit"
-                            className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                            className="bg-cardbg-900 hover:bg-zinc-900 text-white border-slate-800"
                             disabled={!currentMessage.trim()}
                           >
                             <ArrowUpIcon className="h-4 w-4" />
@@ -289,7 +289,7 @@ export default function ChatInterface() {
                             <motion.div
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
-                              className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-yellow-500 text-white text-sm rounded-md whitespace-nowrap"
+                              className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-apiwarn-500 text-white text-sm rounded-md whitespace-nowrap"
                             >
                               Please enter an API key for this model
                             </motion.div>
@@ -305,7 +305,9 @@ export default function ChatInterface() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
-                        className="mt-3 flex items-start space-x-2 text-sm text-slate-200 bg-gray-800 p-3 rounded-lg border border-slate-700"
+                        className="mt-3 flex items-start space-x-2 text-sm text-slate-500 
+                        bg-gradient-to-r from-apiwarn-800 to-apiwarn-800 via-apiwarn-700 p-3 
+                        rounded-lg shadow-xl border border-slate-800"
                       >
                         <InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-400" />
                         <p>
@@ -340,18 +342,31 @@ export default function ChatInterface() {
                       className={`message-bubble p-3 rounded-2xl mb-1 relative 
                         max-w-[90%] text-base
                         ${message.sender === 'user' 
-                          ? 'bg-gradient-to-bl from-gray-600 to-gray-700 text-white rounded-tr-sm self-end' 
-                          : 'text-white rounded-tl-sm self-start'}
+                          ? 'bg-gradient-to-br from-zinc-950 to-zinc-950 via-cardbg-800 text-white rounded-tr-sm self-end border border-slate-900 shadow-2xl' 
+                          : 'mt-2 text-white rounded-tl-sm self-start'}
                         ${message.isStreaming ? 'animate-pulse' : ''}`}
                     >
-                      <div
-                        dangerouslySetInnerHTML={{
-                          __html: formatMarkdown(message.content)
-                        }}
-                      />
-                      {message.isStreaming && (
-                        <div className="absolute bottom-1 right-1">
-                          <div className="animate-spin h-3 w-3 border-2 border-gray-600 border-t-transparent rounded-full" />
+                      {message.isStreaming && !message.content ? (
+                        // Show typing indicator when no content yet
+                        <div className="flex items-center space-x-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          </div>
+                          <span className="text-slate-400 text-sm animate-pulse">🤖 Thinking...</span>
+                        </div>
+                      ) : (
+                        <div
+                          dangerouslySetInnerHTML={{
+                            __html: formatMarkdown(`${message.sender === 'user' ? '' : '🤖 '}${message.content}${message.sender === 'user' ? ' 🤓' : ''}`)
+                          }}
+                        />
+                      )}
+                      {message.isStreaming && message.content && (
+                        <div className="flex items-center justify-end mt-2 space-x-2">
+                          <div className="animate-spin h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                          <span className="text-blue-400 text-xs animate-pulse">Streaming response...</span>
                         </div>
                       )}
                     </div>
@@ -364,20 +379,19 @@ export default function ChatInterface() {
             max-w-3xl w-full mx-auto flex-shrink-0"
           >
             <CardContent 
-              className="p-4 bg-gradient-to-b from-gray-600 to-gray-700 
-              border border-gray-800 rounded-lg"
+              className="p-4 bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900 
+              border border-slate-800 rounded-lg shadow-2xl"
             >
               <form onSubmit={handleSubmit} className="flex flex-col space-y-3">
                 <div 
                   className="flex flex-col rounded-lg p-2 gap-2 
-                  bg-gradient-to-b from-gray-600 to-gray-700
-                  border-0 shadow-lg"
+                  bg-transparent"
                 >
                   <Textarea
                     id="message-input"
                     ref={textareaRef}
                     className="flex-grow text-white resize-none border-0 
-                    bg-transparent min-h-[40px] max-h-[200px]
+                    bg-transparent min-h-[10px] max-h-[30px]
                     focus:ring-0 focus:outline-none focus:border-0 
                     focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
                     placeholder:text-slate-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-hidden"
@@ -396,12 +410,15 @@ export default function ChatInterface() {
                           setApiKey('');
                         }}
                       >
-                        <SelectTrigger className="w-[200px] bg-gray-700 text-white border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none data-[state=open]:ring-0 data-[state=open]:outline-none">
+                        <SelectTrigger className="w-[200px] bg-cardbg-900 text-white border-slate-800 
+                        focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none 
+                        data-[state=open]:ring-0 data-[state=open]:outline-none">
                           <SelectValue placeholder="Select model" />
                         </SelectTrigger>
-                        <SelectContent className="bg-gray-700 border-slate-600 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
+                        <SelectContent className="bg-cardbg-900 border-slate-800 
+                        focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
                           {modelOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value} className="text-white focus:bg-gray-600 focus:text-white">
+                            <SelectItem key={option.value} value={option.value} className="text-white focus:bg-slate-800 focus:text-white">
                               {option.label}
                             </SelectItem>
                           ))}
@@ -417,7 +434,8 @@ export default function ChatInterface() {
                               placeholder="🔒 Enter your API Key here"
                               value={apiKey}
                               onChange={(e) => setApiKey(e.target.value)}
-                              className="pl-9 pr-9 w-[250px] bg-gray-700 text-white border-slate-600 placeholder:text-slate-400 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
+                              className="pl-9 pr-9 w-[250px] bg-cardbg-900 text-white border-slate-800 placeholder:text-slate-400 
+                              focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none"
                             />
                             <button
                               type="button"
@@ -435,13 +453,24 @@ export default function ChatInterface() {
                       )}
                     </div>
                     <div className="flex items-center space-x-2">
-                      <Button
-                        type="submit"
-                        className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
-                        disabled={!currentMessage.trim()}
-                      >
-                        <ArrowUpIcon className="h-4 w-4" />
-                      </Button>
+                      <div className="relative">
+                        <Button
+                          type="submit"
+                          className="bg-cardbg-900 hover:bg-zinc-900 text-white border-slate-800"
+                          disabled={!currentMessage.trim()}
+                        >
+                          <ArrowUpIcon className="h-4 w-4" />
+                        </Button>
+                        {showApiKeyError && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-apiwarn-500 text-white text-sm rounded-md whitespace-nowrap"
+                          >
+                            Please enter an API key for this model
+                          </motion.div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -452,7 +481,7 @@ export default function ChatInterface() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ duration: 0.3 }}
-                      className="mt-3 flex items-start space-x-2 text-sm text-slate-200 bg-gray-800 p-3 rounded-lg border border-slate-700"
+                      className="mt-3 flex items-start space-x-2 text-sm text-slate-500 bg-gradient-to-r from-apiwarn-800 to-apiwarn-800 via-apiwarn-700 p-3 rounded-lg border border-slate-800"
                     >
                       <InfoIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-slate-400" />
                       <p>
