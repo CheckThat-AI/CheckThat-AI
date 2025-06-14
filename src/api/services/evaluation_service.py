@@ -9,11 +9,8 @@ import base64
 from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 
-# Add the project root directory to the Python path
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.append(str(project_root))
-
-from src.utils.evaluate import start_evaluation
+# Import from the utils folder that's now inside the api folder
+from ..utils.evaluate import start_evaluation
 from ..models.requests import EvaluationStartRequest
 
 class EvaluationService:

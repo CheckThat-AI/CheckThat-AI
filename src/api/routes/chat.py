@@ -4,12 +4,9 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
-# Add the project root directory to the Python path
-project_root = Path(__file__).parent.parent.parent.parent
-sys.path.append(str(project_root))
-
-from src.utils.get_model_response import get_model_response
-from src.utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
+# Import from the utils folder that's now inside the api folder
+from ..utils.get_model_response import get_model_response
+from ..utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
 from ..models.requests import ChatRequest
 
 router = APIRouter(prefix="/chat", tags=["chat"])

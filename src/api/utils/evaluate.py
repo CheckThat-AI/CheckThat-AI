@@ -25,8 +25,10 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
     # Dictionary to store results by model and prompt style
     results_by_combination: Dict[str, Dict[str, List]] = {}
     
+    # Update path to correctly point to data directory from api/utils/
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    results_dir = os.path.join(os.path.dirname(current_dir), "data", "results")
+    # Go up from utils -> api -> src -> root, then down to data/results
+    results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), "data", "results")
     # Create output directory if it doesn't exist
     os.makedirs(results_dir, exist_ok=True)
     
@@ -157,6 +159,9 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
     # Dictionary to store the average score for each combination
     combination_scores = {}
     
+    # Calculate the path to data directory from api/utils/
+    data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), "data")
+    
     # Save results for each combination in separate files
     for combo_key, results in results_by_combination.items():
         output_path = f"{results_dir}/inference_results_{combo_key}.csv"
@@ -171,7 +176,8 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
             'meteor_score': avg_score,
         }
 
-        with open("./data/results/scores.jsonl", "a") as file:
+        scores_file_path = os.path.join(data_dir, "results", "scores.jsonl")
+        with open(scores_file_path, "a") as file:
             json_line = json.dumps(new_data)
             file.write(json_line + "\n")
     
@@ -188,8 +194,9 @@ def start_evaluation(models: List[str], prompt_styles: List[str], input_data: pd
         for key in combined_results:
             combined_results[key].extend(results[key])
     
-    pd.DataFrame(combined_results).to_csv("./data/inference_results.csv", index=False)
-    #print("\nCombined results saved to ./data/inference_results.csv")
+    combined_results_path = os.path.join(data_dir, "inference_results.csv")
+    pd.DataFrame(combined_results).to_csv(combined_results_path, index=False)
+    #print(f"\nCombined results saved to {combined_results_path}")
     
     # Return a dictionary containing the average score for each combination
     return combination_scores
