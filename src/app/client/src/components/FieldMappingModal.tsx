@@ -43,6 +43,8 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
     metadata: null,
     comments: null,
   });
+  const [contextDelimiter, setContextDelimiter] = useState<string>('none');
+  const [retrievalContextDelimiter, setRetrievalContextDelimiter] = useState<string>('none');
   const [isLoading, setIsLoading] = useState(false);
 
   // Detect file structure when modal opens and file is provided
@@ -184,7 +186,12 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
   };
 
   const handleConfirm = () => {
-    onMapping(mapping);
+    const mappingWithDelimiters = {
+      ...mapping,
+      contextDelimiter: mapping.context ? (contextDelimiter === 'none' ? null : contextDelimiter) : undefined,
+      retrievalContextDelimiter: mapping.retrievalContext ? (retrievalContextDelimiter === 'none' ? null : retrievalContextDelimiter) : undefined,
+    };
+    onMapping(mappingWithDelimiters);
     onClose();
   };
 
@@ -192,7 +199,10 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[80vh] bg-gray-800 text-slate-200 overflow-y-auto custom-scrollbar border-black shadow-xl">
+      <DialogContent className="max-w-4xl max-h-[80vh] flex-1 flex-col
+      bg-gradient-to-r from-black to-zinc-950 via-cardbg-900
+      border border-slate-800 shadow-xl rounded-lg
+      text-slate-200 overflow-y-auto custom-scrollbar overflow-x-auto">
         <DialogHeader>
           <DialogTitle className="text-white">Map Dataset Fields</DialogTitle>
           <DialogDescription className="text-slate-300">
@@ -208,7 +218,8 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
         ) : detectedFields ? (
           <div className="space-y-6">
             {/* File Info */}
-            <div className="bg-gray-700 p-4 rounded-lg">
+            <div className="bg-gradient-to-r from-black via-zinc-950 to-black 
+            p-4 rounded-lg border border-slate-800 shadow-xl">
               <h3 className="text-sm font-medium text-white mb-2">File Information</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -232,16 +243,19 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   Input<span className="text-red-400 ml-1">*</span>
                   <span className="text-xs text-slate-400 ml-2">(Required - The input text/query/prompt given to the model)</span>
                 </label>
-                <Select value={mapping.inputText || ''} onValueChange={(value) => {
-                  const inputText = value || null;
+                <Select value={mapping.inputText || 'none'} onValueChange={(value) => {
+                  const inputText = value === 'none' ? null : value;
                   setMapping(prev => ({ ...prev, inputText }));
                 }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
+                  <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  text-white border-slate-800">
                     <SelectValue placeholder="Select column for input text" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
+                  <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  border-slate-800 text-white focus:bg-cardbg-900">
+                    <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
                     {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
+                      <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
                         {column}
                       </SelectItem>
                     ))}
@@ -259,13 +273,15 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   const actualOutput = value === 'none' ? null : value;
                   setMapping(prev => ({ ...prev, actualOutput }));
                 }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
+                  <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  text-white border-slate-800">
                     <SelectValue placeholder="Select column for actual output (optional)" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
+                  <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  border-slate-800 text-white focus:bg-cardbg-900">
+                    <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
                     {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
+                      <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
                         {column}
                       </SelectItem>
                     ))}
@@ -283,13 +299,15 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   const expectedOutput = value === 'none' ? null : value;
                   setMapping(prev => ({ ...prev, expectedOutput }));
                 }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
+                  <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  text-white border-slate-800">
                     <SelectValue placeholder="Select column for ground truth (optional)" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
+                  <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  border-slate-800 text-white focus:bg-cardbg-900">
+                    <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
                     {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
+                      <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
                         {column}
                       </SelectItem>
                     ))}
@@ -303,22 +321,48 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   Retrieval Context
                   <span className="text-xs text-slate-400 ml-2">(Optional List of text - Retrieved context for RAG systems)</span>
                 </label>
-                <Select value={mapping.retrievalContext || 'none'} onValueChange={(value) => {
-                  const retrievalContext = value === 'none' ? null : value;
-                  setMapping(prev => ({ ...prev, retrievalContext }));
-                }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
-                    <SelectValue placeholder="Select column for retrieval context (optional)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
-                    {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
-                        {column}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex space-x-2">
+                  <Select value={mapping.retrievalContext || 'none'} onValueChange={(value) => {
+                    const retrievalContext = value === 'none' ? null : value;
+                    setMapping(prev => ({ ...prev, retrievalContext }));
+                  }}>
+                    <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                    text-white border-slate-800 flex-1">
+                      <SelectValue placeholder="Select column for retrieval context (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                    border-slate-800 text-white focus:bg-cardbg-900">
+                      <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
+                      {detectedFields.columns.map((column) => (
+                        <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
+                          {column}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mapping.retrievalContext && (
+                    <Select value={retrievalContextDelimiter} onValueChange={setRetrievalContextDelimiter}>
+                      <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      text-white border-slate-800 w-32">
+                        <SelectValue placeholder="Delimiter" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      border-slate-800 text-white focus:bg-cardbg-900">
+                        <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None (Single entry)</SelectItem>
+                        <SelectItem value="\n" className="text-white focus:bg-cardbg-900 focus:text-white">Newline</SelectItem>
+                        <SelectItem value="," className="text-white focus:bg-cardbg-900 focus:text-white">Comma</SelectItem>
+                        <SelectItem value=";" className="text-white focus:bg-cardbg-900 focus:text-white">Semicolon</SelectItem>
+                        <SelectItem value="|" className="text-white focus:bg-cardbg-900 focus:text-white">Pipe</SelectItem>
+                        <SelectItem value=" " className="text-white focus:bg-cardbg-900 focus:text-white">Space</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {mapping.retrievalContext && (
+                  <p className="text-xs text-slate-500">
+                    Delimiter: "{retrievalContextDelimiter === 'none' ? 'None (use entire entry)' : retrievalContextDelimiter === '\n' ? '\\n' : retrievalContextDelimiter}" - {retrievalContextDelimiter === 'none' ? 'Use entire column entry as single context' : 'Used to split multiple context items'}
+                  </p>
+                )}
               </div>
 
               {/* Context Mapping */}
@@ -327,22 +371,48 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   Context
                   <span className="text-xs text-slate-400 ml-2">(Optional List of text - Additional context for the input)</span>
                 </label>
-                <Select value={mapping.context || 'none'} onValueChange={(value) => {
-                  const context = value === 'none' ? null : value;
-                  setMapping(prev => ({ ...prev, context }));
-                }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
-                    <SelectValue placeholder="Select column for context (optional)" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
-                    {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
-                        {column}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="flex space-x-2">
+                  <Select value={mapping.context || 'none'} onValueChange={(value) => {
+                    const context = value === 'none' ? null : value;
+                    setMapping(prev => ({ ...prev, context }));
+                  }}>
+                    <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                    text-white border-slate-800 flex-1">
+                      <SelectValue placeholder="Select column for context (optional)" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                    border-slate-800 text-white focus:bg-cardbg-900">
+                      <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
+                      {detectedFields.columns.map((column) => (
+                        <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
+                          {column}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {mapping.context && (
+                    <Select value={contextDelimiter} onValueChange={setContextDelimiter}>
+                      <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      text-white border-slate-800 w-32">
+                        <SelectValue placeholder="Delimiter" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      border-slate-800 text-white focus:bg-cardbg-900">
+                        <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None (Single entry)</SelectItem>
+                        <SelectItem value="\n" className="text-white focus:bg-cardbg-900 focus:text-white">Newline</SelectItem>
+                        <SelectItem value="," className="text-white focus:bg-cardbg-900 focus:text-white">Comma</SelectItem>
+                        <SelectItem value=";" className="text-white focus:bg-cardbg-900 focus:text-white">Semicolon</SelectItem>
+                        <SelectItem value="|" className="text-white focus:bg-cardbg-900 focus:text-white">Pipe</SelectItem>
+                        <SelectItem value=" " className="text-white focus:bg-cardbg-900 focus:text-white">Space</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {mapping.context && (
+                  <p className="text-xs text-slate-500">
+                    Delimiter: "{contextDelimiter === 'none' ? 'None (use entire entry)' : contextDelimiter === '\n' ? '\\n' : contextDelimiter}" - {contextDelimiter === 'none' ? 'Use entire column entry as single context' : 'Used to split multiple context items'}
+                  </p>
+                )}
               </div>
 
               {/* Metadata Mapping */}
@@ -355,13 +425,15 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   const metadata = value === 'none' ? null : value;
                   setMapping(prev => ({ ...prev, metadata }));
                 }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
+                  <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  text-white border-slate-800">
                     <SelectValue placeholder="Select column for metadata (optional)" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
+                  <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  border-slate-800 text-white focus:bg-cardbg-900">
+                    <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
                     {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
+                      <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
                         {column}
                       </SelectItem>
                     ))}
@@ -379,13 +451,15 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   const comments = value === 'none' ? null : value;
                   setMapping(prev => ({ ...prev, comments }));
                 }}>
-                  <SelectTrigger className="bg-gray-700 text-white border-slate-600">
+                  <SelectTrigger className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  text-white border-slate-800">
                     <SelectValue placeholder="Select column for comments (optional)" />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-700 border-slate-600">
-                    <SelectItem value="none" className="text-white focus:bg-gray-600">None</SelectItem>
+                  <SelectContent className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                  border-slate-800 text-white focus:bg-cardbg-900">
+                    <SelectItem value="none" className="text-white focus:bg-cardbg-900 focus:text-white">None</SelectItem>
                     {detectedFields.columns.map((column) => (
-                      <SelectItem key={column} value={column} className="text-white focus:bg-gray-600">
+                      <SelectItem key={column} value={column} className="text-white focus:bg-cardbg-900 focus:text-white">
                         {column}
                       </SelectItem>
                     ))}
@@ -397,12 +471,13 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
             {/* Sample Data Preview */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium text-white">Sample Data Preview</h3>
-              <div className="bg-gray-700 p-3 rounded-lg overflow-x-auto">
+              <div className="bg-gradient-to-r from-black via-zinc-950 to-black 
+              p-3 rounded-lg overflow-x-auto border border-slate-800 shadow-xl">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-gray-600">
                       {detectedFields.columns.map((column) => (
-                        <th key={column} className="text-left p-2 text-slate-300 font-medium">
+                        <th key={column} className="text-center p-2 text-white text-base font-bold">
                           {column}
                         </th>
                       ))}
@@ -410,9 +485,9 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
                   </thead>
                   <tbody>
                     {detectedFields.sampleData.map((row, index) => (
-                      <tr key={index} className="border-b border-gray-600">
+                      <tr key={`row-${index}-${Object.values(row).join('-').slice(0, 50)}`} className="border-b border-slate-800">
                         {detectedFields.columns.map((column) => (
-                          <td key={column} className="p-2 text-slate-200 max-w-[200px] truncate">
+                          <td key={column} className="p-2 text-slate-200 max-w-[200px] truncate border border-slate-800">
                             {String(row[column] || '')}
                           </td>
                         ))}
@@ -436,14 +511,16 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
               <Button
                 variant="outline"
                 onClick={onClose}
-                className="bg-gray-700 hover:bg-gray-600 text-white border-slate-600"
+                className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                hover:bg-cardbg-600 hover:text-red-600 text-white border-slate-800"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleConfirm}
                 disabled={!isValidMapping}
-                className="bg-primary hover:bg-primary/90 text-white"
+                className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                hover:bg-cardbg-600 hover:text-green-600 text-white border border-slate-800"
               >
                 <CheckIcon className="h-4 w-4 mr-2" />
                 Confirm Mapping
