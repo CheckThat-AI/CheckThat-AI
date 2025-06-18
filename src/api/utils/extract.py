@@ -11,7 +11,7 @@ def clean_filename(text: str) -> str:
     """Convert text to a valid filename by removing invalid characters"""
     return re.sub(r'[\\/*?:"<>|]', "_", text)
 
-def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, refine_iters: int, cross_refine_model: Optional[str] = None, progress_callback=None, stop_event=None) -> Union[str, bool]:
+def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, refine_iters: int, cross_refine_model: Optional[str] = None, progress_callback=None, stop_event=None) -> Union[Tuple[str, List[str], List[str]], bool]:
     try:
         # Dictionary to store results by model and prompt style
         results_by_combination: Dict[str, Dict[str, List]] = {}
@@ -172,8 +172,12 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
         combined_results_path = os.path.join(data_dir, "inference_results.csv")
         pd.DataFrame(combined_results).to_csv(combined_results_path, index=False)
         
-        # Return path to the combined results file on success
-        return combined_results_path
+        # Extract claims for return
+        extracted_claims = combined_results['responses']
+        reference_claims = combined_results['labels']
+        
+        # Return tuple of (file_path, extracted_claims, reference_claims) on success
+        return (combined_results_path, extracted_claims, reference_claims)
         
     except Exception as e:
         print(f"Error during evaluation: {str(e)}")
