@@ -1,4 +1,4 @@
-from api.utils.evaluate import start_evaluation
+from api.utils.extract import start_extraction
 import pandas as pd
 import argparse
 import os
@@ -13,9 +13,10 @@ def main():
         Accepted data file format: CSV file only.
         Note: If no arguments are provided, default values will be used."""
     )
-    parser.add_argument("-p", "--prompt", nargs='*', type=str, help="Prompt style.")
+    parser.add_argument("-p", "--prompt", type=str, help="Prompt style.")
     parser.add_argument("-d", "--data", type=str, help="Path to the CSV file containing the dev set.")
-    parser.add_argument("-m", "--model", nargs='*', type=str, help="Model name.")
+    parser.add_argument("-m", "--model", type=str, help="Model name.")
+    parser.add_argument("-c", "--cross_refine_model", type=str, help="Cross-refine model name.")
     parser.add_argument("-it", "--iters", type=str, help="Number of self-refine iterations.")
     args = parser.parse_args()
 
@@ -24,12 +25,13 @@ def main():
     DEV_DATA: pd.DataFrame
     MODEL: str
     PROMPT: str
-    SR_ITERATIONS: int
-    
+    REFINE_ITERATIONS: int
+    CROSS_REFINE_MODEL: str
     
     PROMPT_STYLE = args.prompt if args.prompt else "Zero-shot"    
-    MODEL = args.model if args.model else "Llama"
-    SR_ITERATIONS: int = int(args.iters) if args.iters else 0
+    MODEL = args.model if args.model else "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+    REFINE_ITERATIONS: int = int(args.iters) if args.iters else 0
+    CROSS_REFINE_MODEL = args.cross_refine_model if args.cross_refine_model else None
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     FILE_PATH = args.data if args.data else os.path.join(os.path.dirname(current_dir), "data", "dev.csv")
@@ -40,7 +42,7 @@ def main():
     
     DEV_DATA = pd.read_csv(FILE_PATH)
 
-    METEOR_SCORE = start_evaluation(MODEL, PROMPT_STYLE, DEV_DATA, SR_ITERATIONS)
+    METEOR_SCORE = start_extraction(MODEL, PROMPT_STYLE, DEV_DATA, REFINE_ITERATIONS, CROSS_REFINE_MODEL)
     
     print(f"\nAverage METEOR Score: {METEOR_SCORE}")
     
