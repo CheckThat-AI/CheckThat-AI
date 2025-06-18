@@ -40,6 +40,7 @@ def get_claude_structured_response(model: str, sys_prompt: str, user_prompt: str
         client = instructor.from_anthropic(anthropic.Anthropic(api_key=ANTHROPIC_API_KEY))
         try:
             response = client.chat.completions.create(
+                max_tokens=8192,
                 model=model,
                 system=sys_prompt,
                 messages=[{"role": "user", "content": user_prompt}],
