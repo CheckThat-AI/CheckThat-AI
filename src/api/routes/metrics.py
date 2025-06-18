@@ -5,7 +5,7 @@ import logging
 from ..models.requests import MetricCalculationRequest, BatchMetricRequest, SessionMetricRequest, BatchSessionMetricRequest
 from ..models.responses import MetricCalculationResponse, BatchMetricResponse, ErrorResponse
 from ..services.metrics_service import metrics_service
-from ..services.evaluation_session import evaluation_session_manager
+from ..services.extraction_session import extraction_session_manager
 
 logger = logging.getLogger(__name__)
 
@@ -228,8 +228,8 @@ async def list_sessions() -> Dict[str, Any]:
         Dictionary with session information
     """
     try:
-        sessions = evaluation_session_manager.list_sessions()
-        stats = evaluation_session_manager.get_session_stats()
+        sessions = extraction_session_manager.list_sessions()
+        stats = extraction_session_manager.get_session_stats()
         return {
             "sessions": sessions,
             "stats": stats
@@ -250,7 +250,7 @@ async def get_session_details(session_id: str) -> Dict[str, Any]:
         Session details including claim counts and metadata
     """
     try:
-        eval_data = evaluation_session_manager.get_evaluation_data(session_id)
+        eval_data = extraction_session_manager.get_evaluation_data(session_id)
         if not eval_data:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
         
@@ -281,7 +281,7 @@ async def remove_session(session_id: str) -> Dict[str, Any]:
         Confirmation message
     """
     try:
-        success = evaluation_session_manager.remove_session(session_id)
+        success = extraction_session_manager.remove_session(session_id)
         if success:
             return {"message": f"Session {session_id} removed successfully"}
         else:
