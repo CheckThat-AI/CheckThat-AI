@@ -30,10 +30,10 @@ def get_model_response(model:str, user_prompt:str, sys_prompt:str, gen_type:str)
     elif gen_type == "chat":
         response_type = None    
     
-    if model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14", "grok-3-latest"]:
+    if model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14"]:
         generated_claim = get_gpt_streaming_response(model, sys_prompt, user_prompt) if gen_type == "chat" else get_gpt_structured_response(model, sys_prompt, user_prompt, response_type)
 
-    elif model == "grok-3-latest":
+    elif model in ["grok-3","grok-3-mini", "grok-3-mini-fast"]:
         generated_claim = get_grok_streaming_response(model, sys_prompt, user_prompt) if gen_type == "chat" else get_grok_structured_response(model, sys_prompt, user_prompt, response_type)
              
     elif model == "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free":
@@ -42,7 +42,10 @@ def get_model_response(model:str, user_prompt:str, sys_prompt:str, gen_type:str)
     elif model in ["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"]:
         generated_claim = get_gemini_streaming_response(model, sys_prompt, user_prompt) if gen_type == "chat" else get_gemini_structured_response(model, sys_prompt, user_prompt, response_type)
         
-    else:
+    elif model in ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]:
         generated_claim = get_claude_streaming_response(model, sys_prompt, user_prompt) if gen_type == "chat" else get_claude_structured_response(model, sys_prompt, user_prompt, response_type)
+    
+    else:
+        raise ValueError(f"Unsupported model: {model}")
             
     return generated_claim
