@@ -20,6 +20,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  SelectGroup,
+  SelectLabel,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ModelOption } from '@shared/types';
@@ -43,15 +45,43 @@ export default function ChatInterface() {
   const messageContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  const modelOptions: { value: ModelOption; label: string }[] = [
-    { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B' },
-    { value: 'claude-3.7-sonnet-latest', label: 'Claude 3.7 Sonnet' },
-    { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
-    { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },
-    { value: 'gpt-4.1-nano-2025-04-14', label: 'GPT-4.1 nano' },
-    { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro' },
-    { value: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash' },
-    { value: 'grok-3-latest', label: 'Grok 3 Beta' },
+  const modelGroups = [
+    {
+      label: "Together AI (Free)",
+      models: [
+        { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B' },
+      ]
+    },
+    {
+      label: "OpenAI",
+      models: [
+        { value: 'gpt-4o-2024-11-20', label: 'GPT-4o' },
+        { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1' },
+        { value: 'gpt-4.1-nano-2025-04-14', label: 'GPT-4.1 Nano' },
+      ]
+    },
+    {
+      label: "Anthropic",
+      models: [
+        { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
+        { value: 'claude-opus-4-20250514', label: 'Claude Opus 4' },
+      ]
+    },
+    {
+      label: "Google AI",
+      models: [
+        { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro' },
+        { value: 'gemini-2.5-flash-preview-04-17', label: 'Gemini 2.5 Flash' },
+      ]
+    },
+    {
+      label: "xAI",
+      models: [
+        { value: 'grok-3', label: 'Grok 3' },
+        { value: 'grok-3-mini', label: 'Grok 3 Mini' },
+        { value: 'grok-3-mini-fast', label: 'Grok 3 Mini-Fast' },
+      ]
+    }
   ];
 
   // Add auto-resize function
@@ -240,11 +270,19 @@ export default function ChatInterface() {
                             <SelectValue placeholder="Select model" />
                           </SelectTrigger>
                           <SelectContent className="bg-cardbg-900 border-slate-800 
-                          focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                            {modelOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value} className="text-white focus:bg-cyan-900 focus:text-white">
-                                {option.label}
-                              </SelectItem>
+                          focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none
+                          max-h-[30vh] overflow-y-auto scrollbar-hide">
+                            {modelGroups.map((group) => (
+                              <SelectGroup key={group.label}>
+                                <SelectLabel className="text-slate-400 font-medium px-2 py-1.5">
+                                  {group.label}
+                                </SelectLabel>
+                                {group.models.map((model) => (
+                                  <SelectItem key={model.value} value={model.value} className="text-white focus:bg-cyan-900 focus:text-white">
+                                    {model.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
                             ))}
                           </SelectContent>
                         </Select>
@@ -416,11 +454,19 @@ export default function ChatInterface() {
                           <SelectValue placeholder="Select model" />
                         </SelectTrigger>
                         <SelectContent className="bg-cardbg-900 border-slate-800 
-                        focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none">
-                          {modelOptions.map((option) => (
-                            <SelectItem key={option.value} value={option.value} className="text-white focus:bg-slate-800 focus:text-white">
-                              {option.label}
-                            </SelectItem>
+                        focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none
+                        max-h-[30vh] overflow-y-auto scrollbar-hide">
+                          {modelGroups.map((group) => (
+                            <SelectGroup key={group.label}>
+                              <SelectLabel className="text-slate-400 font-medium px-2 py-1.5">
+                                {group.label}
+                              </SelectLabel>
+                              {group.models.map((model) => (
+                                <SelectItem key={model.value} value={model.value} className="text-white focus:bg-slate-800 focus:text-white">
+                                  {model.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
