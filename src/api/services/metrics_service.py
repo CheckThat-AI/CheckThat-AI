@@ -10,7 +10,7 @@ from ..metrics import (
 )
 from ..models.requests import MetricCalculationRequest, BatchMetricRequest, SessionMetricRequest, BatchSessionMetricRequest
 from ..models.responses import MetricCalculationResponse, BatchMetricResponse
-from .evaluation_session import evaluation_session_manager
+from .extraction_session import extraction_session_manager
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ class MetricsService:
         
         # If session_id is provided, get texts from session
         if request.session_id:
-            claims_data = evaluation_session_manager.get_claims_for_metrics(request.session_id)
+            claims_data = extraction_session_manager.get_claims_for_metrics(request.session_id)
             if claims_data:
                 return claims_data  # Returns (extracted_claims, reference_claims)
             else:
@@ -130,12 +130,26 @@ class MetricsService:
             # Resolve texts from request or session
             response_texts, reference_texts = self._resolve_texts(request)
             
+            # Add debugging
+            logger.info(f"Resolved texts for {request.metric_type}: response_texts={len(response_texts)}, reference_texts={len(reference_texts)}")
+            logger.info(f"Response texts types: {[type(t) for t in response_texts[:3]]}")  # First 3 items
+            logger.info(f"Reference texts types: {[type(t) for t in reference_texts[:3]]}")  # First 3 items
+            logger.info(f"Response texts sample: {response_texts[:2] if response_texts else []}")
+            logger.info(f"Reference texts sample: {reference_texts[:2] if reference_texts else []}")
+            
             # Validate resolved texts
             if len(response_texts) != len(reference_texts):
                 raise ValueError("Response and reference text lists must have the same length")
             
             if not response_texts:
                 raise ValueError("Text lists cannot be empty")
+            
+            # Check for None values or non-strings
+            for i, (resp, ref) in enumerate(zip(response_texts, reference_texts)):
+                if resp is None or ref is None:
+                    raise ValueError(f"Found None value at index {i}: response={resp}, reference={ref}")
+                if not isinstance(resp, str) or not isinstance(ref, str):
+                    raise ValueError(f"Found non-string value at index {i}: response={type(resp)}, reference={type(ref)}")
             
             # Get calculator
             calculator = self._get_calculator(request.metric_type, request.config)
@@ -245,7 +259,7 @@ class MetricsService:
         try:
             # Resolve texts once for all metrics
             if request.session_id:
-                claims_data = evaluation_session_manager.get_claims_for_metrics(request.session_id)
+                claims_data = extraction_session_manager.get_claims_for_metrics(request.session_id)
                 if not claims_data:
                     return BatchMetricResponse(
                         results={},
