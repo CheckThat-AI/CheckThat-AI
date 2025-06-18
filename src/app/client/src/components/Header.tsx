@@ -20,7 +20,7 @@ export default function Header() {
             {mode === 'chat' ? 'Chat Mode' : 'Batch Mode'}
           </span>
           <Switch
-            checked={mode === 'evaluation'}
+            checked={mode === 'extraction'}
             onCheckedChange={toggleMode}
             title="Toggle between Chat and Batch modes"
           />
