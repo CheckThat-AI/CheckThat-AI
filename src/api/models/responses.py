@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 class HealthCheck(BaseModel):
     status: str
@@ -23,6 +23,20 @@ class ProgressUpdate(BaseModel):
 class EvaluationComplete(BaseModel):
     message: str
     scores: Dict[str, float]
+
+class MetricCalculationResponse(BaseModel):
+    metric_type: str
+    scores: List[float]
+    execution_time: float
+    success: bool
+    detailed_results: Optional[List[Dict[str, Any]]] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class BatchMetricResponse(BaseModel):
+    results: Dict[str, MetricCalculationResponse]
+    total_execution_time: float
+    success: bool
+    failed_metrics: Optional[List[str]] = None
 
 class ErrorResponse(BaseModel):
     detail: str
