@@ -3,7 +3,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PromptStyleOption, FieldMapping } from '@shared/types';
-import EvaluationResultsComponent from './EvaluationResults';
+import ExtractionResultsComponent from './ExtractionResults';
 import FieldMappingModal from './FieldMappingModal';
 import { defaultPrompts, sys_prompt } from '@shared/prompts';
 import { useToast } from '@/hooks/use-toast';
@@ -21,11 +21,11 @@ import {
   SystemMessageCard,
   ModelSelectionCard,
   PromptSelectionCard,
-  EvaluationMethodsCard,
-  EvaluationMetricsCard,
+  ExtractionMethodsCard,
+  ExtractionMetricsCard,
   FileUploadCard,
-  EvaluationProgressCard
-} from './evaluation/index';
+  ExtractionProgressCard
+} from '@/components/extraction/index';
 
 // Add CSS for hiding scrollbars
 const scrollbarStyles = `
@@ -38,23 +38,24 @@ const scrollbarStyles = `
   }
 `;
 
-export default function EvaluationInterface() {
+export default function ExtractionInterface() {
   const {
-    evaluationData,
-    updateEvaluationData,
-    resetEvaluation,
+    extractionData,
+    updateExtractionData,
+    resetExtraction,
     progress,
     progressStatus,
-    startEvaluation,
-    evaluationResults,
+    startExtraction,
+    extractionResults,
     selectedEvalMethod,
     setSelectedEvalMethod,
     selfRefineIterations,
     setSelfRefineIterations,
     crossRefineIterations,
     setCrossRefineIterations,
-    stopEvaluation,
+    stopExtraction,
     logMessages,
+    sessionId,
   } = useAppContext();
   
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -67,8 +68,8 @@ export default function EvaluationInterface() {
   const [isCustomPromptSelected, setIsCustomPromptSelected] = useState(false);
   const [showFieldMappingModal, setShowFieldMappingModal] = useState(false);
   
-  // Use evaluationData.fieldMapping instead of local state
-  const fieldMapping = evaluationData.fieldMapping || {
+  // Use extractionData.fieldMapping instead of local state
+  const fieldMapping = extractionData.fieldMapping || {
     inputText: null,
     expectedOutput: null,
     actualOutput: null,
@@ -90,7 +91,7 @@ export default function EvaluationInterface() {
   const getModelProvider = (model: string): string => {
     if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(model)) {
       return 'openai';
-    } else if (['claude-3-7-sonnet-latest'].includes(model)) {
+    } else if (['claude-sonnet-4-20250514', 'claude-opus-4-20250514'].includes(model)) {
       return 'anthropic';
     } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(model)) {
       return 'gemini';
@@ -105,10 +106,10 @@ export default function EvaluationInterface() {
   // Helper functions to determine which API keys are needed
   const getSelectedModelProviders = () => {
     const providers = new Set();
-    evaluationData.selectedModels.forEach(model => {
+    extractionData.selectedModels.forEach(model => {
       if (['gpt-4o-2024-11-20', 'gpt-4.1-2025-04-14', 'gpt-4.1-nano-2025-04-14'].includes(model)) {
         providers.add('openai');
-      } else if (['claude-3-7-sonnet-latest'].includes(model)) {
+      } else if (['claude-sonnet-4-20250514', 'claude-opus-4-20250514'].includes(model)) {
         providers.add('anthropic');
       } else if (['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17'].includes(model)) {
         providers.add('gemini');
@@ -119,7 +120,7 @@ export default function EvaluationInterface() {
     return providers;
   };
 
-  // Scroll to results when evaluation is completed
+  // Scroll to results when extraction is completed
   useEffect(() => {
     if (progressStatus === 'completed' && resultsRef.current) {
       resultsRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -133,11 +134,11 @@ export default function EvaluationInterface() {
         return 'Not started';
       case 'processing':
         if (progress < 90) return 'Generating results...';
-        return 'Finalizing evaluation...';
+        return 'Finalizing extraction...';
       case 'completed':
-        return 'Evaluation completed successfully';
+        return 'Extraction completed successfully';
       case 'error':
-        return 'Error during evaluation';
+        return 'Error during extraction';
       default:
         return 'Unknown status';
     }
@@ -191,19 +192,19 @@ export default function EvaluationInterface() {
   // Check Cross-Refine feedback model API keys
   const validateFeedbackModelKeys = (): string[] => {
     if (selectedEvalMethod !== 'CROSS-REFINE' || 
-        !evaluationData.crossRefineModel || 
-        evaluationData.crossRefineModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' ||
-        !evaluationData.selectedModels.length ||
-        getModelProvider(evaluationData.crossRefineModel) === getModelProvider(evaluationData.selectedModels[0])) {
+        !extractionData.crossRefineModel || 
+        extractionData.crossRefineModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' ||
+        !extractionData.selectedModels.length ||
+        getModelProvider(extractionData.crossRefineModel) === getModelProvider(extractionData.selectedModels[0])) {
       return [];
     }
 
-    const feedbackProvider = getModelProvider(evaluationData.crossRefineModel);
+    const feedbackProvider = getModelProvider(extractionData.crossRefineModel);
     const missingKey = checkMissingApiKey(feedbackProvider);
     return missingKey ? [`${missingKey.charAt(0).toUpperCase() + missingKey.slice(1)} (for feedback model)`] : [];
   };
 
-  // Validate API keys before starting evaluation
+  // Validate API keys before starting extraction
   const validateApiKeys = () => {
     const missingKeys = [...validateMainModelKeys(), ...validateFeedbackModelKeys()];
     
@@ -218,11 +219,11 @@ export default function EvaluationInterface() {
     return true;
   };
 
-  const handleStartEvaluation = () => {
+  const handleStartExtraction = () => {
     if (!validateApiKeys()) return;
     
     // Add validation for Cross-Refine model only if CROSS-REFINE is selected
-    if (selectedEvalMethod === 'CROSS-REFINE' && !evaluationData.crossRefineModel) {
+    if (selectedEvalMethod === 'CROSS-REFINE' && !extractionData.crossRefineModel) {
       toast({
         title: "Cross-Refine Model Required",
         description: "Please select a feedback model for cross-refinement.",
@@ -231,7 +232,7 @@ export default function EvaluationInterface() {
       return;
     }
     
-    // Pass API keys to startEvaluation
+    // Pass API keys to startExtraction
     const apiKeys = {
       openai: openaiApiKey,
       anthropic: anthropicApiKey,
@@ -239,11 +240,11 @@ export default function EvaluationInterface() {
       grok: grokApiKey
     };
     
-    startEvaluation(apiKeys);
+    startExtraction(apiKeys);
   };
 
   const handleFieldMapping = (mapping: FieldMapping) => {
-    updateEvaluationData({ fieldMapping: mapping });
+    updateExtractionData({ fieldMapping: mapping });
     toast({
       title: "Field Mapping Saved",
       description: `Mapped input text to "${mapping.inputText}" column.`,
@@ -283,7 +284,7 @@ export default function EvaluationInterface() {
             className="bg-gray-900 rounded-lg shadow-lg w-full max-w-4xl mx-auto my-8 p-6 relative flex flex-col"
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg text-white font-bold">Evaluation Terminal</h3>
+              <h3 className="text-lg text-white font-bold">Extraction Terminal</h3>
               <button
                 onClick={() => setShowLogModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -304,7 +305,7 @@ export default function EvaluationInterface() {
               }}
             >
               {logMessages.length === 0 ? (
-                <span className="text-slate-400">evaluation@server:~$ # Waiting for evaluation to start...</span>
+                <span className="text-slate-400">extraction@server:~$ # Waiting for extraction to start...</span>
               ) : (
                 logMessages.map((msg, idx) => (
                   <div key={`log-${idx}-${msg.slice(0, 10)}`} className="py-0.5 font-mono">
@@ -352,16 +353,16 @@ export default function EvaluationInterface() {
           {/* System Message */}
           <SystemMessageCard />
 
-            {/* Claim Evaluation Card */}
+            {/* Claim Extraction Card */}
           <Card className="border-slate-800 rounded-md shadow-2xl 
           bg-gradient-to-r from-zinc-950 to-zinc-950 via-cardbg-900">
             <CardContent className="p-6">
-              <h2 className="text-xl text-white font-semibold mb-6">Claim Evaluation</h2>
+              <h2 className="text-xl text-white font-semibold mb-6">Claim Extraction</h2>
           
           {/* Model Selection Section */}
               <ModelSelectionCard
-                evaluationData={evaluationData}
-                updateEvaluationData={updateEvaluationData}
+                extractionData={extractionData}
+                updateExtractionData={updateExtractionData}
                 openaiApiKey={openaiApiKey}
                 setOpenaiApiKey={setOpenaiApiKey}
                 anthropicApiKey={anthropicApiKey}
@@ -374,8 +375,8 @@ export default function EvaluationInterface() {
           
           {/* Prompt Style Selection Section */}
               <PromptSelectionCard
-                evaluationData={evaluationData}
-                updateEvaluationData={updateEvaluationData}
+                extractionData={extractionData}
+                updateExtractionData={updateExtractionData}
                 isCustomPromptSelected={isCustomPromptSelected}
                 setIsCustomPromptSelected={setIsCustomPromptSelected}
                 setSelectedPrompt={setSelectedPrompt}
@@ -383,16 +384,16 @@ export default function EvaluationInterface() {
                 setShowSystemPrompt={setShowSystemPrompt}
               />
 
-              {/* Evaluation Methods Section */}
-              <EvaluationMethodsCard
+              {/* Extraction Methods Section */}
+              <ExtractionMethodsCard
                 selectedEvalMethod={selectedEvalMethod}
                 setSelectedEvalMethod={setSelectedEvalMethod}
                 selfRefineIterations={selfRefineIterations}
                 setSelfRefineIterations={setSelfRefineIterations}
                 crossRefineIterations={crossRefineIterations}
                 setCrossRefineIterations={setCrossRefineIterations}
-                evaluationData={evaluationData}
-                updateEvaluationData={updateEvaluationData}
+                extractionData={extractionData}
+                updateExtractionData={updateExtractionData}
                 setSelectedMethodInfo={setSelectedMethodInfo}
                 setShowEvalMethodInfo={setShowEvalMethodInfo}
                 getModelProvider={getModelProvider}
@@ -406,28 +407,21 @@ export default function EvaluationInterface() {
                 setGrokApiKey={setGrokApiKey}
               />
 
-              {/* Evaluation Metrics Section */}
-              <EvaluationMetricsCard
-                selectedEvalMetric={selectedEvalMetric}
-                setSelectedEvalMetric={setSelectedEvalMetric}
-                updateEvaluationData={updateEvaluationData}
-              />
-
           {/* File Upload Section */}
               <FileUploadCard
-                evaluationData={evaluationData}
-                updateEvaluationData={updateEvaluationData}
+                extractionData={extractionData}
+                updateExtractionData={updateExtractionData}
                 fieldMapping={fieldMapping}
                 setShowFieldMappingModal={setShowFieldMappingModal}
               />
           
               {/* Visualization Section */}
               <div ref={resultsRef}>
-                {progressStatus === 'completed' && evaluationResults && evaluationResults.scores.length > 0 && (
-                  <EvaluationResultsComponent 
-                    results={evaluationResults}
-                    selectedModels={evaluationData.selectedModels}
-                    selectedPromptStyles={evaluationData.selectedPromptStyles}
+                {progressStatus === 'completed' && extractionResults && extractionResults.scores.length > 0 && (
+                  <ExtractionResultsComponent 
+                    results={extractionResults}
+                    selectedModels={extractionData.selectedModels}
+                    selectedPromptStyles={extractionData.selectedPromptStyles}
                   />
                 )}
               </div>
@@ -437,26 +431,34 @@ export default function EvaluationInterface() {
                 <div className="flex justify-end mt-8">
                   <Button
                     type="button"
-                    onClick={resetEvaluation}
+                    onClick={resetExtraction}
                     className="bg-slate-200 hover:bg-slate-300 text-slate-800"
                   >
-                    Start New Evaluation
+                    Start New Extraction
                   </Button>
                 </div>
               )}
             </CardContent>
           </Card>
 
-            {/* Evaluation Progress Section */}
-          <EvaluationProgressCard
+            {/* Extraction Progress Section */}
+          <ExtractionProgressCard
             progressStatus={progressStatus}
             progress={progress}
-            evaluationData={evaluationData}
-            handleStartEvaluation={handleStartEvaluation}
-            stopEvaluation={stopEvaluation}
+            extractionData={extractionData}
+            handleStartExtraction={handleStartExtraction}
+            stopExtraction={stopExtraction}
             setShowLogModal={setShowLogModal}
             getProgressStatusText={getProgressStatusText}
           />
+
+            {/* Extraction Metrics Section */}
+            <ExtractionMetricsCard
+              selectedEvalMetric={selectedEvalMetric}
+              setSelectedEvalMetric={setSelectedEvalMetric}
+              updateExtractionData={updateExtractionData}
+              sessionId={sessionId}
+            />
         </div>
       </div>
 
@@ -517,7 +519,7 @@ export default function EvaluationInterface() {
         </DialogContent>
       </Dialog>
 
-      {/* Evaluation Method Info Modal */}
+      {/* Extraction Method Info Modal */}
       <Dialog open={showEvalMethodInfo} onOpenChange={setShowEvalMethodInfo}>
         <DialogContent 
           className="max-w-2xl bg-gray-800 text-slate-200"
@@ -562,7 +564,7 @@ export default function EvaluationInterface() {
       <FieldMappingModal
         isOpen={showFieldMappingModal}
         onClose={handleFieldMappingClose}
-        file={evaluationData.file}
+        file={extractionData.file}
         onMapping={handleFieldMapping}
       />
     </div>
