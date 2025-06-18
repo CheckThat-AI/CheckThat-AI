@@ -3,7 +3,7 @@ import {
   Card, 
   CardContent 
 } from '@/components/ui/card';
-import { EvaluationResults, ModelOption, PromptStyleOption, MeteorScore } from '@shared/types';
+import { ExtractionResults, ModelOption, PromptStyleOption, MeteorScore } from '@shared/types';
 import { 
   BarChart, 
   Bar, 
