@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Play, PauseIcon, RotateCcw } from 'lucide-react';
+import { Play, PauseIcon, RotateCcw, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface ExtractionProgressCardProps {
@@ -13,6 +13,7 @@ interface ExtractionProgressCardProps {
   readonly stopExtraction: () => void;
   readonly setShowLogModal: (show: boolean) => void;
   readonly getProgressStatusText: () => string;
+  readonly onStartOver: () => void;
 }
 
 export default function ExtractionProgressCard({
@@ -22,7 +23,8 @@ export default function ExtractionProgressCard({
   handleStartExtraction,
   stopExtraction,
   setShowLogModal,
-  getProgressStatusText
+  getProgressStatusText,
+  onStartOver
 }: ExtractionProgressCardProps) {
   return (
     <Card className="bg-gradient-to-l from-zinc-950 to-zinc-950 via-cardbg-900 border border-slate-800 shadow-2xl">
@@ -97,6 +99,16 @@ export default function ExtractionProgressCard({
                     >
                       View Terminal
                     </Button>
+                    <Button
+                      type="button"
+                      onClick={onStartOver}
+                      variant="outline"
+                      className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      hover:bg-cardbg-600 hover:text-green-600 text-white border border-slate-800"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Start Over
+                    </Button>
                   </>
                 ) : (
                   <>
@@ -122,6 +134,16 @@ export default function ExtractionProgressCard({
                       hover:bg-cardbg-600 hover:text-red-600 text-white border border-slate-800"
                     >
                       View Terminal
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={onStartOver}
+                      variant="outline"
+                      className="bg-gradient-to-r from-black via-zinc-950 to-black 
+                      hover:bg-cardbg-600 hover:text-green-600 text-white border border-slate-800"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Start Over
                     </Button>
                   </>
                 )}
