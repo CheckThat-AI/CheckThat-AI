@@ -21,14 +21,12 @@ class WebSocketManager:
         """Handle WebSocket disconnection"""
         print(f"WebSocket disconnected for session: {session_id}")
         
-        # Clean up evaluation state
+        # Clean up evaluation state for stop event and active connections
         if session_id in self.evaluation_stop_events:
             self.evaluation_stop_events[session_id].set()
             del self.evaluation_stop_events[session_id]
         
-        if session_id in self.active_evaluations:
-            del self.active_evaluations[session_id]
-        
+        # Remove from active connections
         if session_id in self.active_connections:
             del self.active_connections[session_id]
     
