@@ -15,7 +15,7 @@ import { generateId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { getWsUrl, getApiUrl } from '@/config';
 
-type AppMode = 'chat' | 'evaluation';
+type AppMode = 'chat' | 'extraction';
 
 export interface AppContextType {
   mode: AppMode;
@@ -34,32 +34,19 @@ export interface AppContextType {
   apiKey: string;
   setApiKey: (key: string) => void;
   
-  // Batch mode
-  evaluationData: EvaluationData;
-  updateEvaluationData: (data: Partial<EvaluationData>) => void;
-  resetEvaluation: () => void;
-  
-  // Extraction mode (same as evaluation for now)
-  extractionData: EvaluationData;
+  extractionData: EvaluationData; // Now solely for batch extraction/refinement
   updateExtractionData: (data: Partial<EvaluationData>) => void;
   resetExtraction: () => void;
   
-  // Evaluation methods
-  selectedEvalMethod: 'SELF-REFINE' | 'CROSS-REFINE' | null;
-  setSelectedEvalMethod: (method: 'SELF-REFINE' | 'CROSS-REFINE' | null) => void;
+  selectedRefinementMethod: 'SELF-REFINE' | 'CROSS-REFINE' | null;
+  setSelectedRefinementMethod: (method: 'SELF-REFINE' | 'CROSS-REFINE' | null) => void;
   selfRefineIterations: number;
   setSelfRefineIterations: (iterations: number) => void;
   crossRefineIterations: number;
   setCrossRefineIterations: (iterations: number) => void;
   
-  // New evaluation features
   progress: number;
   progressStatus: 'pending' | 'processing' | 'completed' | 'error';
-  startEvaluation: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
-  stopEvaluation: () => void;
-  evaluationResults: EvaluationResults | null;
-  
-  // New extraction features (same as evaluation for now)
   startExtraction: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
   stopExtraction: () => void;
   extractionResults: EvaluationResults | null;
@@ -67,9 +54,10 @@ export interface AppContextType {
   logMessages: string[];
   setLogMessages: React.Dispatch<React.SetStateAction<string[]>>;
   sessionId: string;
+  extractedFileData: any | null;
 }
 
-const defaultEvaluationData: EvaluationData = {
+const defaultExtractionData: EvaluationData = {
   file: null,
   selectedModels: [],
   selectedPromptStyles: [],
@@ -94,25 +82,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [currentMessage, setCurrentMessage] = useState('');
   const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Free');
   const [apiKey, setApiKey] = useState('');
-  const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
-  const [extractionData, setExtractionData] = useState<EvaluationData>(defaultEvaluationData);
+  const [extractionData, setExtractionData] = useState<EvaluationData>(defaultExtractionData);
   
-  // Evaluation methods state
-  const [selectedEvalMethod, setSelectedEvalMethod] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
+  const [selectedRefinementMethod, setSelectedRefinementMethod] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
   const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
   const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
   
-  // New state for progress tracking
   const [progress, setProgress] = useState<number>(0);
   const [progressStatus, setProgressStatus] = useState<'pending' | 'processing' | 'completed' | 'error'>('pending');
-  const [evaluationResults, setEvaluationResults] = useState<EvaluationResults | null>(null);
   const [extractionResults, setExtractionResults] = useState<EvaluationResults | null>(null);
   const [logMessages, setLogMessages] = useState<string[]>([]);
+  const [extractedFileData, setExtractedFileData] = useState<any | null>(null);
   
   const { toast } = useToast();
 
   const toggleMode = () => {
-    setMode(prevMode => prevMode === 'chat' ? 'evaluation' : 'chat');
+    setMode(prevMode => prevMode === 'chat' ? 'extraction' : 'chat');
   };
 
   const sendMessage = async () => {
@@ -220,38 +205,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedFile(null);
   };
 
-  const updateEvaluationData = (data: Partial<EvaluationData>) => {
-    setEvaluationData(prev => ({ ...prev, ...data }));
-  };
-
-  const resetEvaluation = () => {
-    setEvaluationData(defaultEvaluationData);
-    setSelectedEvalMethod(null);
-    setSelfRefineIterations(1);
-    setCrossRefineIterations(1);
-    setProgress(0);
-    setProgressStatus('pending');
-    setEvaluationResults(null);
-    setIsLoading(false); // Ensure loading state is cleared
-  };
-
-  // Extraction functions (mirror of evaluation for now)
   const updateExtractionData = (data: Partial<EvaluationData>) => {
     setExtractionData(prev => ({ ...prev, ...data }));
   };
 
   const resetExtraction = () => {
-    setExtractionData(defaultEvaluationData);
-    setSelectedEvalMethod(null);
+    setExtractionData(defaultExtractionData);
+    setSelectedRefinementMethod(null);
     setSelfRefineIterations(1);
     setCrossRefineIterations(1);
     setProgress(0);
     setProgressStatus('pending');
     setExtractionResults(null);
+    setExtractedFileData(null);
     setIsLoading(false); // Ensure loading state is cleared
   };
   
-  // WebSocket for real-time evaluation updates
+  // WebSocket for real-time extraction updates
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [sessionId, setSessionId] = useState<string>('');
 
@@ -261,291 +231,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSessionId(id);
   }, []);
 
-  // New methods for model evaluation with progress tracking using WebSocket
-  const startEvaluation = async (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }): Promise<void> => {
-    // Validation
-    if (evaluationData.selectedModels.length === 0 || evaluationData.selectedPromptStyles.length === 0) {
-      toast({
-        title: "Selection Required",
-        description: "Please select one model and one prompt style.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!evaluationData.file) {
-      toast({
-        title: "File Required",
-        description: "Please upload a dataset file.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!evaluationData.fieldMapping || !evaluationData.fieldMapping.inputText) {
-      toast({
-        title: "Field Mapping Required",
-        description: "Please map the input text field for your dataset.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!sessionId) {
-      toast({
-        title: "Error",
-        description: "Session not initialized. Please refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setProgressStatus('processing');
-    setProgress(0);
-    // Don't set isLoading for WebSocket evaluation since we have real-time updates
-    
-    try {
-      // Create WebSocket connection
-      const wsUrl = `${getWsUrl()}/ws/evaluation/${sessionId}`;
-      const websocket = new WebSocket(wsUrl);
-      
-      websocket.onopen = () => {
-        setLogMessages(prev => [...prev, `> Connected to evaluation service (Session: ${sessionId})`]);
-        
-        // Calculate iterations based on selected eval method
-        let iterations = 0;
-        if (selectedEvalMethod === 'SELF-REFINE') {
-          iterations = selfRefineIterations;
-        } else if (selectedEvalMethod === 'CROSS-REFINE') {
-          iterations = crossRefineIterations;
-        }
-        
-        // Convert file to base64
-        const reader = new FileReader();
-        reader.onload = () => {
-          const fileContent = reader.result as string;
-          const base64Content = fileContent.split(',')[1]; // Remove data:... prefix
-          
-          // Check file size and warn user if it's large
-          const fileSizeInMB = evaluationData.file!.size / (1024 * 1024);
-          const base64SizeInMB = (base64Content.length * 0.75) / (1024 * 1024); // Base64 is ~33% larger
-          
-          if (fileSizeInMB > 2) {
-            setLogMessages(prev => [...prev, `> Warning: Large file detected (${fileSizeInMB.toFixed(1)}MB). This may cause connection issues.`]);
-            
-            if (fileSizeInMB > 5) {
-              setLogMessages(prev => [...prev, `> Consider reducing file size or splitting into smaller chunks.`]);
-            }
-          }
-          
-          // Prepare evaluation data
-          const evaluationPayload = {
-            type: 'start_evaluation',
-            data: {
-              models: evaluationData.selectedModels,
-              prompt_styles: evaluationData.selectedPromptStyles,
-              file_data: {
-                name: evaluationData.file!.name,
-                content: base64Content
-              },
-              self_refine_iterations: iterations,
-              eval_method: selectedEvalMethod,
-              custom_prompt: evaluationData.customPrompt || null,
-              api_keys: apiKeys || {},
-              cross_refine_model: evaluationData.crossRefineModel || null,
-              field_mapping: evaluationData.fieldMapping || null,
-              eval_metric: evaluationData.evalMetric || null
-            }
-          };
-          
-          setLogMessages(prev => [...prev, `> Sending evaluation request...`]);
-          // Send evaluation request
-          websocket.send(JSON.stringify(evaluationPayload));
-        };
-        
-        reader.onerror = () => {
-          setLogMessages(prev => [...prev, `✗ Failed to read file`]);
-          setProgressStatus('error');
-        };
-        
-        reader.readAsDataURL(evaluationData.file!);
-      };
-      
-      websocket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        
-        switch (message.type) {
-          case 'progress':
-            setProgress(message.data.percentage || 0);
-            break;
-            
-          case 'log':
-            // Add server logs with terminal-style prefix
-            setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
-            break;
-            
-          case 'log_batch':
-            // Handle batched log messages
-            if (message.data.messages && Array.isArray(message.data.messages)) {
-              const newLogMessages = message.data.messages.map((logData: any) => `$ ${logData.message}`);
-              setLogMessages(prev => [...prev, ...newLogMessages]);
-            }
-            break;
-            
-          case 'status':
-            // Add status updates with different prefix
-            setLogMessages(prev => [...prev, `> ${message.data.message}`]);
-            if (message.data.message.includes('stopped') || message.data.message.includes('cancelled')) {
-              setProgressStatus('error');
-              setLogMessages(prev => [...prev, `✗ Evaluation stopped`]);
-              websocket.close(1000, 'Evaluation stopped');
-              
-              toast({
-                title: "Evaluation Stopped",
-                description: "The evaluation has been stopped.",
-                variant: "default",
-              });
-            }
-            break;
-            
-          case 'complete':
-            setLogMessages(prev => [...prev, `✓ Evaluation completed successfully`]);
-            if (message.data.scores) {
-              // Convert scores to the expected format
-              const results: MeteorScore[] = Object.entries(message.data.scores).map(([key, score]) => {
-                const [model_name, prompt_style] = key.split('_');
-                return {
-                  model: model_name.replace(/_/g, '/'), // Convert back to original model name
-                  promptStyle: prompt_style.replace(/_/g, '-'),
-                  score: score as number
-                };
-              });
-              
-              setEvaluationResults({
-                scores: results,
-                timestamp: new Date()
-              });
-              
-              // Add final scores to log
-              results.forEach(result => {
-                setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
-              });
-            }
-             setProgressStatus('completed');
-             setProgress(100);
-             websocket.close();
-            
-            toast({
-              title: "Evaluation Complete",
-              description: "Successfully completed the evaluation.",
-              variant: "default",
-            });
-            break;
-            
-          case 'error':
-            setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
-            setProgressStatus('error');
-            websocket.close();
-            
-            toast({
-              title: "Error",
-              description: message.data.message,
-              variant: "destructive",
-            });
-            break;
-        }
-      };
-      
-      websocket.onerror = (error) => {
-        setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to evaluation service`]);
-        setProgressStatus('error');
-        
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to the evaluation service.",
-          variant: "destructive",
-        });
-      };
-      
-      websocket.onclose = (event) => {
-        // Handle specific close codes
-        if (event.code === 1009) {
-          setLogMessages(prev => [...prev, `✗ File too large for WebSocket transmission`]);
-          setLogMessages(prev => [...prev, `> Try using a smaller file (< 2MB) or reduce the number of rows`]);
-          setProgressStatus('error');
-          toast({
-            title: "File Too Large",
-            description: "Please use a smaller file (< 2MB) or reduce the dataset size.",
-            variant: "destructive",
-          });
-        } else if (event.code !== 1000 && progressStatus !== 'completed') {
-          setLogMessages(prev => [...prev, `> Connection closed unexpectedly (code: ${event.code})`]);
-          if (progressStatus === 'processing') {
-            setProgressStatus('error');
-            toast({
-              title: "Connection Lost",
-              description: "Connection to evaluation service was lost.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          setLogMessages(prev => [...prev, `> Disconnected from evaluation service`]);
-        }
-        setWs(null);
-      };
-      
-      setWs(websocket);
-      
-    } catch (error) {
-      setLogMessages(prev => [...prev, `✗ Failed to start evaluation: ${error instanceof Error ? error.message : 'Unknown error'}`]);
-      setProgressStatus('error');
-      
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start the evaluation.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Function to stop evaluation
-  const stopEvaluation = () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Send stop message
-      ws.send(JSON.stringify({ type: 'stop_evaluation' }));
-      
-      // Update state immediately
-      setProgressStatus('error');
-      setLogMessages(prev => [...prev, `✗ Evaluation stopped by user`]);
-      
-      // Close WebSocket connection after a short delay to allow server to process stop message
-      setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close(1000, 'Evaluation stopped by user');
-        }
-      }, 500);
-      
-      toast({
-        title: "Evaluation Stopped",
-        description: "The evaluation has been stopped successfully.",
-        variant: "default",
-      });
-    } else {
-      // If WebSocket is not connected, just update the state
-      setProgressStatus('error');
-      setLogMessages(prev => [...prev, `✗ Evaluation stopped (no active connection)`]);
-      
-      toast({
-        title: "Evaluation Stopped",
-        description: "The evaluation has been stopped successfully.",
-        variant: "default",
-      });
-    }
-  };
-
-  // Extraction functions (mirror evaluation for now)
+  // New methods for extraction with progress tracking using WebSocket
   const startExtraction = async (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }): Promise<void> => {
-    // For now, just use the same logic as startEvaluation but with extractionData
     // Validation
     if (extractionData.selectedModels.length === 0 || extractionData.selectedPromptStyles.length === 0) {
       toast({
@@ -585,20 +272,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     setProgressStatus('processing');
     setProgress(0);
+    // Don't set isLoading for WebSocket extraction since we have real-time updates
     
     try {
-      // Create WebSocket connection (reuse evaluation endpoint for now)
-      const wsUrl = `${getWsUrl()}/ws/evaluation/${sessionId}`;
+      // Create WebSocket connection
+      const wsUrl = `${getWsUrl()}/ws/extraction/${sessionId}`;
       const websocket = new WebSocket(wsUrl);
       
       websocket.onopen = () => {
         setLogMessages(prev => [...prev, `> Connected to extraction service (Session: ${sessionId})`]);
         
-        // Calculate iterations based on selected eval method
+        // Calculate iterations based on selected refinement method
         let iterations = 0;
-        if (selectedEvalMethod === 'SELF-REFINE') {
+        if (selectedRefinementMethod === 'SELF-REFINE') {
           iterations = selfRefineIterations;
-        } else if (selectedEvalMethod === 'CROSS-REFINE') {
+        } else if (selectedRefinementMethod === 'CROSS-REFINE') {
           iterations = crossRefineIterations;
         }
         
@@ -606,10 +294,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const reader = new FileReader();
         reader.onload = () => {
           const fileContent = reader.result as string;
-          const base64Content = fileContent.split(',')[1];
+          const base64Content = fileContent.split(',')[1]; // Remove data:... prefix
           
-          const evaluationPayload = {
-            type: 'start_evaluation',
+          // Check file size and warn user if it's large
+          const fileSizeInMB = extractionData.file!.size / (1024 * 1024);
+          const base64SizeInMB = (base64Content.length * 0.75) / (1024 * 1024); // Base64 is ~33% larger
+          
+          if (fileSizeInMB > 2) {
+            setLogMessages(prev => [...prev, `> Warning: Large file detected (${fileSizeInMB.toFixed(1)}MB). This may cause connection issues.`]);
+            
+            if (fileSizeInMB > 5) {
+              setLogMessages(prev => [...prev, `> Consider reducing file size or splitting into smaller chunks.`]);
+            }
+          }
+          
+          // Prepare extraction data
+          const extractionPayload = {
+            type: 'start_extraction',
             data: {
               models: extractionData.selectedModels,
               prompt_styles: extractionData.selectedPromptStyles,
@@ -618,7 +319,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 content: base64Content
               },
               self_refine_iterations: iterations,
-              eval_method: selectedEvalMethod,
+              eval_method: selectedRefinementMethod,
               custom_prompt: extractionData.customPrompt || null,
               api_keys: apiKeys || {},
               cross_refine_model: extractionData.crossRefineModel || null,
@@ -628,7 +329,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
           
           setLogMessages(prev => [...prev, `> Sending extraction request...`]);
-          websocket.send(JSON.stringify(evaluationPayload));
+          // Send extraction request
+          websocket.send(JSON.stringify(extractionPayload));
         };
         
         reader.onerror = () => {
@@ -648,10 +350,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
             break;
             
           case 'log':
+            // Add server logs with terminal-style prefix
             setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
             break;
             
           case 'log_batch':
+            // Handle batched log messages
             if (message.data.messages && Array.isArray(message.data.messages)) {
               const newLogMessages = message.data.messages.map((logData: any) => `$ ${logData.message}`);
               setLogMessages(prev => [...prev, ...newLogMessages]);
@@ -659,6 +363,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             break;
             
           case 'status':
+            // Add status updates with different prefix
             setLogMessages(prev => [...prev, `> ${message.data.message}`]);
             if (message.data.message.includes('stopped') || message.data.message.includes('cancelled')) {
               setProgressStatus('error');
@@ -675,11 +380,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
             
           case 'complete':
             setLogMessages(prev => [...prev, `✓ Extraction completed successfully`]);
+            
+            // Store file data if provided
+            if (message.data.file_data) {
+              setExtractedFileData(message.data.file_data);
+              setLogMessages(prev => [...prev, `> Extracted data saved: ${message.data.file_data.data?.length || 0} rows`]);
+            }
+            
             if (message.data.scores) {
+              // Convert scores to the expected format
               const results: MeteorScore[] = Object.entries(message.data.scores).map(([key, score]) => {
                 const [model_name, prompt_style] = key.split('_');
                 return {
-                  model: model_name.replace(/_/g, '/'),
+                  model: model_name.replace(/_/g, '/'), // Convert back to original model name
                   promptStyle: prompt_style.replace(/_/g, '-'),
                   score: score as number
                 };
@@ -690,13 +403,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 timestamp: new Date()
               });
               
+              // Add final scores to log
               results.forEach(result => {
                 setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
               });
             }
-            setProgressStatus('completed');
-            setProgress(100);
-            websocket.close();
+             setProgressStatus('completed');
+             setProgress(100);
+             websocket.close();
             
             toast({
               title: "Extraction Complete",
@@ -731,13 +445,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       
       websocket.onclose = (event) => {
+        // Handle specific close codes
         if (event.code === 1009) {
           setLogMessages(prev => [...prev, `✗ File too large for WebSocket transmission`]);
+          setLogMessages(prev => [...prev, `> Try using a smaller file (< 2MB) or reduce the number of rows`]);
           setProgressStatus('error');
+          toast({
+            title: "File Too Large",
+            description: "Please use a smaller file (< 2MB) or reduce the dataset size.",
+            variant: "destructive",
+          });
         } else if (event.code !== 1000 && progressStatus !== 'completed') {
           setLogMessages(prev => [...prev, `> Connection closed unexpectedly (code: ${event.code})`]);
           if (progressStatus === 'processing') {
             setProgressStatus('error');
+            toast({
+              title: "Connection Lost",
+              description: "Connection to extraction service was lost.",
+              variant: "destructive",
+            });
           }
         } else {
           setLogMessages(prev => [...prev, `> Disconnected from extraction service`]);
@@ -759,13 +485,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Function to stop extraction
   const stopExtraction = () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'stop_evaluation' }));
+      // Send stop message
+      ws.send(JSON.stringify({ type: 'stop_extraction' }));
       
+      // Update state immediately
       setProgressStatus('error');
       setLogMessages(prev => [...prev, `✗ Extraction stopped by user`]);
       
+      // Close WebSocket connection after a short delay to allow server to process stop message
       setTimeout(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.close(1000, 'Extraction stopped by user');
@@ -778,6 +508,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         variant: "default",
       });
     } else {
+      // If WebSocket is not connected, just update the state
       setProgressStatus('error');
       setLogMessages(prev => [...prev, `✗ Extraction stopped (no active connection)`]);
       
@@ -805,36 +536,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedModel,
     apiKey,
     setApiKey,
-    evaluationData,
-    updateEvaluationData,
-    resetEvaluation,
-    // Extraction data
     extractionData,
     updateExtractionData,
     resetExtraction,
-    // Evaluation methods
-    selectedEvalMethod,
-    setSelectedEvalMethod,
+    selectedRefinementMethod,
+    setSelectedRefinementMethod,
     selfRefineIterations,
     setSelfRefineIterations,
     crossRefineIterations,
     setCrossRefineIterations,
-    // New properties
     progress,
     progressStatus,
-    startEvaluation,
-    stopEvaluation,
-    evaluationResults,
     startExtraction,
     stopExtraction,
     extractionResults,
     logMessages,
     setLogMessages,
-    sessionId
+    sessionId,
+    extractedFileData: extractedFileData
   }), [
     mode, messages, isLoading, selectedFile, currentMessage, selectedModel, apiKey,
-    evaluationData, extractionData, selectedEvalMethod, selfRefineIterations, crossRefineIterations,
-    progress, progressStatus, evaluationResults, extractionResults, logMessages, sessionId
+    extractionData, selectedRefinementMethod, selfRefineIterations, crossRefineIterations,
+    progress, progressStatus, extractionResults, logMessages, sessionId, extractedFileData
   ]);
 
   return (
