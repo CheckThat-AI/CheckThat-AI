@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable
 
 # Import from the utils folder that's now inside the api folder
-from ..utils.evaluate import start_evaluation
+from ..utils.extract import start_extraction
 from ..models.requests import EvaluationStartRequest
 
 class EvaluationService:
@@ -100,7 +100,7 @@ class EvaluationService:
             # Run evaluation
             progress_callback("status", {"message": "Running evaluation...", "progress": 0})
             
-            combination_scores = start_evaluation(
+            combination_scores = start_extraction(
                 models=evaluation_data.models,
                 prompt_styles=evaluation_data.prompt_styles,
                 input_data=df,
