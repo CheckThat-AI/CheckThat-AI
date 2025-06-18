@@ -26,7 +26,7 @@ def format_feedback_for_prompt(feedback: Feedback) -> str:
     
     return "\n".join(formatted_parts)
 
-def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], refine_iters: int, cross_refine_model: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
+def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: int, cross_refine_model: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
     """
     This function takes a list of models, a user prompt, and a list of prompt styles,
     and returns the generated response using the first model and prompt style in the lists.
@@ -41,9 +41,6 @@ def self_refine(models: List[str], user_prompt: str, prompt_styles: List[str], r
     Returns:
         Tuple[str, List[Dict[str, Any]]]: The final refined claim and a list of logs generated during the process.
     """
-    # Use the first model and prompt style in the lists
-    model = models[0]
-    prompt_style = prompt_styles[0]
     
     logs: List[Dict[str, Any]] = []
 
