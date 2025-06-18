@@ -21,10 +21,9 @@ interface FieldMappingModalProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
   readonly file: File | null;
-  readonly onMapping: (mapping: FieldMapping) => void;
+  readonly onSave: (mapping: FieldMapping) => void;
+  readonly initialMapping: FieldMapping | null;
 }
-
-
 
 interface DetectedFields {
   columns: string[];
@@ -32,7 +31,7 @@ interface DetectedFields {
   fileType: 'csv' | 'json' | 'jsonl';
 }
 
-export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: FieldMappingModalProps) {
+export default function FieldMappingModal({ isOpen, onClose, file, onSave, initialMapping }: FieldMappingModalProps) {
   const [detectedFields, setDetectedFields] = useState<DetectedFields | null>(null);
   const [mapping, setMapping] = useState<FieldMapping>({
     inputText: null,
@@ -191,7 +190,7 @@ export default function FieldMappingModal({ isOpen, onClose, file, onMapping }: 
       contextDelimiter: mapping.context ? (contextDelimiter === 'none' ? null : contextDelimiter) : undefined,
       retrievalContextDelimiter: mapping.retrievalContext ? (retrievalContextDelimiter === 'none' ? null : retrievalContextDelimiter) : undefined,
     };
-    onMapping(mappingWithDelimiters);
+    onSave(mappingWithDelimiters);
     onClose();
   };
 
