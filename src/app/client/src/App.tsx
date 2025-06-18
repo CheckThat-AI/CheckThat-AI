@@ -6,11 +6,11 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { queryClient } from './lib/queryClient';
 import { AppProvider, useAppContext } from '@/contexts/AppContext';
 import ChatInterface from '@/components/ChatInterface';
-import EvaluationInterface from '@/components/EvaluationInterface';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import NotFound from '@/pages/not-found';
+import ExtractionInterface from '@/components/ExtractionInterface';
 import './components/scrollbar-hide.css';
 
 function AppLayout() {
@@ -21,7 +21,7 @@ function AppLayout() {
       <Header />
       
       <main className="flex-1 flex flex-col">
-        {mode === 'chat' ? <ChatInterface /> : <EvaluationInterface />}
+        {mode === 'chat' ? <ChatInterface /> : <ExtractionInterface />}
       </main>
       
       <Footer />
