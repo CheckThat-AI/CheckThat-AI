@@ -3,7 +3,8 @@ import { useAppContext } from '@/contexts/AppContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PromptStyleOption, FieldMapping } from '@shared/types';
-import ExtractionResultsComponent from './ExtractionResults';
+import ExtractionResultsComponent from './extraction/ExtractionResults';
+import ExtractionDataViewer from './extraction/ExtractionDataViewer';
 import FieldMappingModal from './FieldMappingModal';
 import { defaultPrompts, sys_prompt } from '@shared/prompts';
 import { useToast } from '@/hooks/use-toast';
@@ -47,15 +48,17 @@ export default function ExtractionInterface() {
     progressStatus,
     startExtraction,
     extractionResults,
-    selectedEvalMethod,
-    setSelectedEvalMethod,
+    selectedRefinementMethod,
+    setSelectedRefinementMethod,
     selfRefineIterations,
     setSelfRefineIterations,
     crossRefineIterations,
     setCrossRefineIterations,
     stopExtraction,
     logMessages,
+    setLogMessages,
     sessionId,
+    extractedFileData,
   } = useAppContext();
   
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -63,8 +66,8 @@ export default function ExtractionInterface() {
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [selectedEvalMetric, setSelectedEvalMetric] = useState<string>('');
-  const [showEvalMethodInfo, setShowEvalMethodInfo] = useState(false);
-  const [selectedMethodInfo, setSelectedMethodInfo] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
+  const [showRefinementMethodInfo, setShowRefinementMethodInfo] = useState(false);
+  const [selectedRefinementMethodInfo, setSelectedRefinementMethodInfo] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
   const [isCustomPromptSelected, setIsCustomPromptSelected] = useState(false);
   const [showFieldMappingModal, setShowFieldMappingModal] = useState(false);
   
@@ -191,7 +194,7 @@ export default function ExtractionInterface() {
 
   // Check Cross-Refine feedback model API keys
   const validateFeedbackModelKeys = (): string[] => {
-    if (selectedEvalMethod !== 'CROSS-REFINE' || 
+    if (selectedRefinementMethod !== 'CROSS-REFINE' || 
         !extractionData.crossRefineModel || 
         extractionData.crossRefineModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free' ||
         !extractionData.selectedModels.length ||
@@ -223,7 +226,7 @@ export default function ExtractionInterface() {
     if (!validateApiKeys()) return;
     
     // Add validation for Cross-Refine model only if CROSS-REFINE is selected
-    if (selectedEvalMethod === 'CROSS-REFINE' && !extractionData.crossRefineModel) {
+    if (selectedRefinementMethod === 'CROSS-REFINE' && !extractionData.crossRefineModel) {
       toast({
         title: "Cross-Refine Model Required",
         description: "Please select a feedback model for cross-refinement.",
@@ -245,15 +248,46 @@ export default function ExtractionInterface() {
 
   const handleFieldMapping = (mapping: FieldMapping) => {
     updateExtractionData({ fieldMapping: mapping });
-    toast({
-      title: "Field Mapping Saved",
-      description: `Mapped input text to "${mapping.inputText}" column.`,
-      variant: "default",
-    });
   };
 
   const handleFieldMappingClose = () => {
     setShowFieldMappingModal(false);
+  };
+
+  const handleResetExtraction = () => {
+    // Reset all context state
+    resetExtraction();
+    
+    // Reset API keys
+    setOpenaiApiKey('');
+    setAnthropicApiKey('');
+    setGeminiApiKey('');
+    setGrokApiKey('');
+    
+    // Reset prompt selections
+    setSelectedPrompt(null);
+    setIsCustomPromptSelected(false);
+    setShowSystemPrompt(false);
+    
+    // Reset metric selection
+    setSelectedEvalMetric('');
+    
+    // Reset modal states
+    setShowRefinementMethodInfo(false);
+    setSelectedRefinementMethodInfo(null);
+    setShowLogModal(false);
+    setIsPromptModalOpen(false);
+    setShowFieldMappingModal(false);
+    
+    // Clear log messages
+    setLogMessages([]);
+    
+    // Show confirmation toast
+    toast({
+      title: "Reset Complete",
+      description: "All settings have been cleared. You can start fresh.",
+      variant: "default",
+    });
   };
 
   const evalMethodDescriptions = {
@@ -386,16 +420,16 @@ export default function ExtractionInterface() {
 
               {/* Extraction Methods Section */}
               <ExtractionMethodsCard
-                selectedEvalMethod={selectedEvalMethod}
-                setSelectedEvalMethod={setSelectedEvalMethod}
+                selectedEvalMethod={selectedRefinementMethod}
+                setSelectedEvalMethod={setSelectedRefinementMethod}
                 selfRefineIterations={selfRefineIterations}
                 setSelfRefineIterations={setSelfRefineIterations}
                 crossRefineIterations={crossRefineIterations}
                 setCrossRefineIterations={setCrossRefineIterations}
                 extractionData={extractionData}
                 updateExtractionData={updateExtractionData}
-                setSelectedMethodInfo={setSelectedMethodInfo}
-                setShowEvalMethodInfo={setShowEvalMethodInfo}
+                setSelectedMethodInfo={setSelectedRefinementMethodInfo}
+                setShowEvalMethodInfo={setShowRefinementMethodInfo}
                 getModelProvider={getModelProvider}
                 openaiApiKey={openaiApiKey}
                 setOpenaiApiKey={setOpenaiApiKey}
@@ -426,18 +460,7 @@ export default function ExtractionInterface() {
                 )}
               </div>
               
-              {/* Reset Button */}
-              {progressStatus === 'completed' && (
-                <div className="flex justify-end mt-8">
-                  <Button
-                    type="button"
-                    onClick={resetExtraction}
-                    className="bg-slate-200 hover:bg-slate-300 text-slate-800"
-                  >
-                    Start New Extraction
-                  </Button>
-                </div>
-              )}
+
             </CardContent>
           </Card>
 
@@ -450,7 +473,13 @@ export default function ExtractionInterface() {
             stopExtraction={stopExtraction}
             setShowLogModal={setShowLogModal}
             getProgressStatusText={getProgressStatusText}
+            onStartOver={handleResetExtraction}
           />
+
+            {/* Extracted Data Section */}
+            {progressStatus === 'completed' && extractedFileData && (
+              <ExtractionDataViewer fileData={extractedFileData} />
+            )}
 
             {/* Extraction Metrics Section */}
             <ExtractionMetricsCard
@@ -520,33 +549,33 @@ export default function ExtractionInterface() {
       </Dialog>
 
       {/* Extraction Method Info Modal */}
-      <Dialog open={showEvalMethodInfo} onOpenChange={setShowEvalMethodInfo}>
+      <Dialog open={showRefinementMethodInfo} onOpenChange={setShowRefinementMethodInfo}>
         <DialogContent 
           className="max-w-2xl bg-gray-800 text-slate-200"
         >
           <DialogHeader>
             <DialogTitle className="text-white">
-              {selectedMethodInfo && evalMethodDescriptions[selectedMethodInfo].title}
+              {selectedRefinementMethodInfo && evalMethodDescriptions[selectedRefinementMethodInfo].title}
             </DialogTitle>
             <DialogDescription className="text-slate-300">
-              {selectedMethodInfo && evalMethodDescriptions[selectedMethodInfo].description}
+              {selectedRefinementMethodInfo && evalMethodDescriptions[selectedRefinementMethodInfo].description}
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4">
-            {selectedMethodInfo && (
+            {selectedRefinementMethodInfo && (
               <div className="space-y-4">
                 <div>
                   <h4 className="text-sm font-medium text-white mb-2">Process Flow:</h4>
                   <div className="bg-gray-700 p-3 rounded-lg">
                     <code className="text-sm text-slate-200">
-                      {evalMethodDescriptions[selectedMethodInfo].process}
+                      {evalMethodDescriptions[selectedRefinementMethodInfo].process}
                     </code>
                   </div>
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-white mb-2">Benefits:</h4>
                   <ul className="space-y-1">
-                    {evalMethodDescriptions[selectedMethodInfo].benefits.map((benefit) => (
+                    {evalMethodDescriptions[selectedRefinementMethodInfo].benefits.map((benefit) => (
                       <li key={benefit} className="text-sm text-slate-300 flex items-center">
                         <span className="text-green-400 mr-2">•</span>
                         {benefit}
@@ -560,12 +589,13 @@ export default function ExtractionInterface() {
         </DialogContent>
       </Dialog>
 
-      {/* Field Mapping Modal */}
+      {/* Field Mapping Modal */} 
       <FieldMappingModal
         isOpen={showFieldMappingModal}
         onClose={handleFieldMappingClose}
+        onSave={handleFieldMapping}
+        initialMapping={fieldMapping}
         file={extractionData.file}
-        onMapping={handleFieldMapping}
       />
     </div>
   );
