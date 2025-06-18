@@ -5,10 +5,19 @@ from fastapi import HTTPException
 from json import JSONDecodeError
 from .schema import NormalizedClaim, Feedback
 
+def _get_openai_client() -> OpenAI:
+    """Get OpenAI client with API key validation"""
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    if not OPENAI_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="OPENAI_API_KEY environment variable is not set"
+        )
+    return OpenAI(api_key=OPENAI_API_KEY)
+
 def get_gpt_streaming_response(model: str, sys_prompt: str, user_prompt: str) -> Generator[str, None, None]:
     try:
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = _get_openai_client()
         try:
             stream = client.chat.completions.create(
                 model=model,
@@ -34,8 +43,7 @@ def get_gpt_streaming_response(model: str, sys_prompt: str, user_prompt: str) ->
 
 def get_gpt_structured_response(model: str, sys_prompt: str, user_prompt: str, response_format: Type[Union[NormalizedClaim, Feedback]]) -> Union[NormalizedClaim, Feedback]:
     try:
-        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-        client = OpenAI(api_key=OPENAI_API_KEY)
+        client = _get_openai_client()
         try:
             response = client.beta.chat.completions.parse(
                             model=model,
@@ -43,7 +51,7 @@ def get_gpt_structured_response(model: str, sys_prompt: str, user_prompt: str, r
                             response_format=response_format
                         )
             parsed_response = response.choices[0].message.parsed
-            return response_format(**parsed_response)
+            return parsed_response
         except JSONDecodeError as e:
             raise HTTPException(
                 status_code=500,

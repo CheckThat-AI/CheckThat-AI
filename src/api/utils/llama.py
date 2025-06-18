@@ -10,12 +10,6 @@ def get_llama_structured_response(model: str, sys_prompt: str, user_prompt: str,
     """Get a structured JSON response from Llama (non-streaming)"""
     try:
         TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-        if not TOGETHER_API_KEY:
-            raise HTTPException(
-                status_code=500,
-                detail="TOGETHER_API_KEY environment variable is not set"
-            )
-
         client = Together(api_key=TOGETHER_API_KEY)
         
         assert response_format in [NormalizedClaim, Feedback], "response_format must be NormalizedClaim or Feedback"
@@ -58,12 +52,6 @@ def get_llama_streaming_response(model: str, sys_prompt: str, user_prompt: str) 
     """Get a streaming text response from Llama"""
     try:
         TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
-        if not TOGETHER_API_KEY:
-            raise HTTPException(
-                status_code=500,
-                detail="TOGETHER_API_KEY environment variable is not set"
-            )
-
         client = Together(api_key=TOGETHER_API_KEY)
         
         try:

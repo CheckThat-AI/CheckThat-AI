@@ -43,7 +43,7 @@ def get_grok_structured_response(model: str, sys_prompt: str, user_prompt: str, 
                             response_format=response_format
                         )
             parsed_response = response.choices[0].message.parsed
-            return response_format(**parsed_response)
+            return parsed_response
         except JSONDecodeError as e:
             raise HTTPException(
                 status_code=500,

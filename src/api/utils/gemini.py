@@ -16,8 +16,7 @@ def get_gemini_streaming_response(model: str, sys_prompt: str, user_prompt: str)
                 contents=[types.Part.from_text(text=user_prompt)],
                 config=types.GenerateContentConfig(
                     system_instruction=sys_prompt
-                ),
-                stream=True
+                )
             )
             for chunk in stream:
                 if hasattr(chunk, 'text') and chunk.text:
@@ -51,7 +50,7 @@ def get_gemini_structured_response(model: str, sys_prompt: str, user_prompt: str
                             ),
                         )
             parsed_response = response.parsed
-            return response_format(**parsed_response)
+            return parsed_response
         except JSONDecodeError as e:
             raise HTTPException(
                 status_code=500,
