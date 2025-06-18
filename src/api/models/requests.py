@@ -15,7 +15,7 @@ class EvalRequest(BaseModel):
     api_key: Optional[str] = None
     cross_refine_model: Optional[str] = None
 
-class EvaluationStartRequest(BaseModel):
+class ExtractionStartRequest(BaseModel):
     models: List[str]
     prompt_styles: List[str]
     file_data: Dict[str, str]  # name and content
