@@ -39,6 +39,11 @@ export interface AppContextType {
   updateEvaluationData: (data: Partial<EvaluationData>) => void;
   resetEvaluation: () => void;
   
+  // Extraction mode (same as evaluation for now)
+  extractionData: EvaluationData;
+  updateExtractionData: (data: Partial<EvaluationData>) => void;
+  resetExtraction: () => void;
+  
   // Evaluation methods
   selectedEvalMethod: 'SELF-REFINE' | 'CROSS-REFINE' | null;
   setSelectedEvalMethod: (method: 'SELF-REFINE' | 'CROSS-REFINE' | null) => void;
@@ -53,8 +58,15 @@ export interface AppContextType {
   startEvaluation: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
   stopEvaluation: () => void;
   evaluationResults: EvaluationResults | null;
+  
+  // New extraction features (same as evaluation for now)
+  startExtraction: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
+  stopExtraction: () => void;
+  extractionResults: EvaluationResults | null;
+  
   logMessages: string[];
   setLogMessages: React.Dispatch<React.SetStateAction<string[]>>;
+  sessionId: string;
 }
 
 const defaultEvaluationData: EvaluationData = {
@@ -83,6 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Free');
   const [apiKey, setApiKey] = useState('');
   const [evaluationData, setEvaluationData] = useState<EvaluationData>(defaultEvaluationData);
+  const [extractionData, setExtractionData] = useState<EvaluationData>(defaultEvaluationData);
   
   // Evaluation methods state
   const [selectedEvalMethod, setSelectedEvalMethod] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
@@ -93,6 +106,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<number>(0);
   const [progressStatus, setProgressStatus] = useState<'pending' | 'processing' | 'completed' | 'error'>('pending');
   const [evaluationResults, setEvaluationResults] = useState<EvaluationResults | null>(null);
+  const [extractionResults, setExtractionResults] = useState<EvaluationResults | null>(null);
   const [logMessages, setLogMessages] = useState<string[]>([]);
   
   const { toast } = useToast();
@@ -218,6 +232,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProgress(0);
     setProgressStatus('pending');
     setEvaluationResults(null);
+    setIsLoading(false); // Ensure loading state is cleared
+  };
+
+  // Extraction functions (mirror of evaluation for now)
+  const updateExtractionData = (data: Partial<EvaluationData>) => {
+    setExtractionData(prev => ({ ...prev, ...data }));
+  };
+
+  const resetExtraction = () => {
+    setExtractionData(defaultEvaluationData);
+    setSelectedEvalMethod(null);
+    setSelfRefineIterations(1);
+    setCrossRefineIterations(1);
+    setProgress(0);
+    setProgressStatus('pending');
+    setExtractionResults(null);
     setIsLoading(false); // Ensure loading state is cleared
   };
   
@@ -512,6 +542,252 @@ export function AppProvider({ children }: { children: ReactNode }) {
       });
     }
   };
+
+  // Extraction functions (mirror evaluation for now)
+  const startExtraction = async (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }): Promise<void> => {
+    // For now, just use the same logic as startEvaluation but with extractionData
+    // Validation
+    if (extractionData.selectedModels.length === 0 || extractionData.selectedPromptStyles.length === 0) {
+      toast({
+        title: "Selection Required",
+        description: "Please select one model and one prompt style.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!extractionData.file) {
+      toast({
+        title: "File Required",
+        description: "Please upload a dataset file.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!extractionData.fieldMapping || !extractionData.fieldMapping.inputText) {
+      toast({
+        title: "Field Mapping Required",
+        description: "Please map the input text field for your dataset.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (!sessionId) {
+      toast({
+        title: "Error",
+        description: "Session not initialized. Please refresh the page.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setProgressStatus('processing');
+    setProgress(0);
+    
+    try {
+      // Create WebSocket connection (reuse evaluation endpoint for now)
+      const wsUrl = `${getWsUrl()}/ws/evaluation/${sessionId}`;
+      const websocket = new WebSocket(wsUrl);
+      
+      websocket.onopen = () => {
+        setLogMessages(prev => [...prev, `> Connected to extraction service (Session: ${sessionId})`]);
+        
+        // Calculate iterations based on selected eval method
+        let iterations = 0;
+        if (selectedEvalMethod === 'SELF-REFINE') {
+          iterations = selfRefineIterations;
+        } else if (selectedEvalMethod === 'CROSS-REFINE') {
+          iterations = crossRefineIterations;
+        }
+        
+        // Convert file to base64
+        const reader = new FileReader();
+        reader.onload = () => {
+          const fileContent = reader.result as string;
+          const base64Content = fileContent.split(',')[1];
+          
+          const evaluationPayload = {
+            type: 'start_evaluation',
+            data: {
+              models: extractionData.selectedModels,
+              prompt_styles: extractionData.selectedPromptStyles,
+              file_data: {
+                name: extractionData.file!.name,
+                content: base64Content
+              },
+              self_refine_iterations: iterations,
+              eval_method: selectedEvalMethod,
+              custom_prompt: extractionData.customPrompt || null,
+              api_keys: apiKeys || {},
+              cross_refine_model: extractionData.crossRefineModel || null,
+              field_mapping: extractionData.fieldMapping || null,
+              eval_metric: extractionData.evalMetric || null
+            }
+          };
+          
+          setLogMessages(prev => [...prev, `> Sending extraction request...`]);
+          websocket.send(JSON.stringify(evaluationPayload));
+        };
+        
+        reader.onerror = () => {
+          setLogMessages(prev => [...prev, `✗ Failed to read file`]);
+          setProgressStatus('error');
+        };
+        
+        reader.readAsDataURL(extractionData.file!);
+      };
+      
+      websocket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        
+        switch (message.type) {
+          case 'progress':
+            setProgress(message.data.percentage || 0);
+            break;
+            
+          case 'log':
+            setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
+            break;
+            
+          case 'log_batch':
+            if (message.data.messages && Array.isArray(message.data.messages)) {
+              const newLogMessages = message.data.messages.map((logData: any) => `$ ${logData.message}`);
+              setLogMessages(prev => [...prev, ...newLogMessages]);
+            }
+            break;
+            
+          case 'status':
+            setLogMessages(prev => [...prev, `> ${message.data.message}`]);
+            if (message.data.message.includes('stopped') || message.data.message.includes('cancelled')) {
+              setProgressStatus('error');
+              setLogMessages(prev => [...prev, `✗ Extraction stopped`]);
+              websocket.close(1000, 'Extraction stopped');
+              
+              toast({
+                title: "Extraction Stopped",
+                description: "The extraction has been stopped.",
+                variant: "default",
+              });
+            }
+            break;
+            
+          case 'complete':
+            setLogMessages(prev => [...prev, `✓ Extraction completed successfully`]);
+            if (message.data.scores) {
+              const results: MeteorScore[] = Object.entries(message.data.scores).map(([key, score]) => {
+                const [model_name, prompt_style] = key.split('_');
+                return {
+                  model: model_name.replace(/_/g, '/'),
+                  promptStyle: prompt_style.replace(/_/g, '-'),
+                  score: score as number
+                };
+              });
+              
+              setExtractionResults({
+                scores: results,
+                timestamp: new Date()
+              });
+              
+              results.forEach(result => {
+                setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
+              });
+            }
+            setProgressStatus('completed');
+            setProgress(100);
+            websocket.close();
+            
+            toast({
+              title: "Extraction Complete",
+              description: "Successfully completed the extraction.",
+              variant: "default",
+            });
+            break;
+            
+          case 'error':
+            setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
+            setProgressStatus('error');
+            websocket.close();
+            
+            toast({
+              title: "Error",
+              description: message.data.message,
+              variant: "destructive",
+            });
+            break;
+        }
+      };
+      
+      websocket.onerror = (error) => {
+        setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to extraction service`]);
+        setProgressStatus('error');
+        
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to the extraction service.",
+          variant: "destructive",
+        });
+      };
+      
+      websocket.onclose = (event) => {
+        if (event.code === 1009) {
+          setLogMessages(prev => [...prev, `✗ File too large for WebSocket transmission`]);
+          setProgressStatus('error');
+        } else if (event.code !== 1000 && progressStatus !== 'completed') {
+          setLogMessages(prev => [...prev, `> Connection closed unexpectedly (code: ${event.code})`]);
+          if (progressStatus === 'processing') {
+            setProgressStatus('error');
+          }
+        } else {
+          setLogMessages(prev => [...prev, `> Disconnected from extraction service`]);
+        }
+        setWs(null);
+      };
+      
+      setWs(websocket);
+      
+    } catch (error) {
+      setLogMessages(prev => [...prev, `✗ Failed to start extraction: ${error instanceof Error ? error.message : 'Unknown error'}`]);
+      setProgressStatus('error');
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to start the extraction.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const stopExtraction = () => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'stop_evaluation' }));
+      
+      setProgressStatus('error');
+      setLogMessages(prev => [...prev, `✗ Extraction stopped by user`]);
+      
+      setTimeout(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.close(1000, 'Extraction stopped by user');
+        }
+      }, 500);
+      
+      toast({
+        title: "Extraction Stopped",
+        description: "The extraction has been stopped successfully.",
+        variant: "default",
+      });
+    } else {
+      setProgressStatus('error');
+      setLogMessages(prev => [...prev, `✗ Extraction stopped (no active connection)`]);
+      
+      toast({
+        title: "Extraction Stopped",
+        description: "The extraction has been stopped successfully.",
+        variant: "default",
+      });
+    }
+  };
   
   const contextValue = useMemo(() => ({
     mode,
@@ -532,6 +808,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     evaluationData,
     updateEvaluationData,
     resetEvaluation,
+    // Extraction data
+    extractionData,
+    updateExtractionData,
+    resetExtraction,
     // Evaluation methods
     selectedEvalMethod,
     setSelectedEvalMethod,
@@ -545,12 +825,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     startEvaluation,
     stopEvaluation,
     evaluationResults,
+    startExtraction,
+    stopExtraction,
+    extractionResults,
     logMessages,
-    setLogMessages
+    setLogMessages,
+    sessionId
   }), [
     mode, messages, isLoading, selectedFile, currentMessage, selectedModel, apiKey,
-    evaluationData, selectedEvalMethod, selfRefineIterations, crossRefineIterations,
-    progress, progressStatus, evaluationResults, logMessages
+    evaluationData, extractionData, selectedEvalMethod, selfRefineIterations, crossRefineIterations,
+    progress, progressStatus, evaluationResults, extractionResults, logMessages, sessionId
   ]);
 
   return (
