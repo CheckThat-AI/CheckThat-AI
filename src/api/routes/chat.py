@@ -13,22 +13,23 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 VALID_MODELS = [
     "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-    "claude-3.7-sonnet-latest",
+    "claude-sonnet-4-20250514",
+    "claude-opus-4-20250514",
     "gpt-4o-2024-11-20",
     "gpt-4.1-2025-04-14",
     "gpt-4.1-nano-2025-04-14",
     "gemini-2.5-pro-preview-05-06",
     "gemini-2.5-flash-preview-04-17",
-    "grok-3-latest"
+    "grok-3-mini"
 ]
 
 def get_api_provider(model: str) -> str:
     """Determine the API provider based on the model"""
     if model in ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "gpt-4.1-nano-2025-04-14"]:
         return "OPENAI"
-    elif model == "grok-3-latest":
+    elif model in ["grok-3-mini"]:
         return "GROK"
-    elif model == "claude-3.7-sonnet-latest":
+    elif model in ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]:
         return "ANTHROPIC"
     elif model in ["gemini-2.5-pro-preview-05-06", "gemini-2.5-flash-preview-04-17"]:
         return "GEMINI"
@@ -41,7 +42,7 @@ async def chat_interface(request: ChatRequest):
     Endpoint to normalize a single claim from the user provided text
     """
     try:
-        print("Received request:", request.model_dump_json(indent=4))
+        print("Requested model:", request.model)
 
         if request.model not in VALID_MODELS:
             print(f"Invalid model: {request.model}")
