@@ -38,3 +38,9 @@ src/app/dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# DeepEval Cloud
+deepeval-test-dataset/
+src/api/deepeval-test-dataset/
+src/api/.deepeval/
+src/api/test-deepeval-dataset/
