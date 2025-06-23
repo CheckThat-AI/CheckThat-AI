@@ -39,6 +39,12 @@ from .rouge import (
     calculate_rouge_score_batch
 )
 
+from .faithfulness import (
+    FaithfulnessCalculator,
+    FaithfulnessConfig,
+    FaithfulnessResult
+)
+
 __all__ = [
     # METEOR
     "MeteorCalculator",
@@ -73,5 +79,10 @@ __all__ = [
     "RougeConfig",
     "RougeResult",
     "calculate_rouge_score",
-    "calculate_rouge_score_batch"
+    "calculate_rouge_score_batch",
+    
+    # Faithfulness (DeepEval)
+    "FaithfulnessCalculator",
+    "FaithfulnessConfig", 
+    "FaithfulnessResult"
 ] 
