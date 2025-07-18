@@ -79,7 +79,8 @@ export default function ExtractionInterface() {
     context: null,
     retrievalContext: null,
     metadata: null,
-    comments: null
+    comments: null,
+    promptInfo: null
   };
   
   // API Key states
@@ -87,6 +88,11 @@ export default function ExtractionInterface() {
   const [anthropicApiKey, setAnthropicApiKey] = useState('');
   const [geminiApiKey, setGeminiApiKey] = useState('');
   const [grokApiKey, setGrokApiKey] = useState('');
+  
+  // DeepEval Cloud states
+  const [deepEvalCloudEnabled, setDeepEvalCloudEnabled] = useState(false);
+  const [deepEvalModel, setDeepEvalModel] = useState('');
+  const [deepEvalApiKey, setDeepEvalApiKey] = useState('');
   
   const { toast } = useToast();
   
@@ -205,6 +211,25 @@ export default function ExtractionInterface() {
     const feedbackProvider = getModelProvider(extractionData.crossRefineModel);
     const missingKey = checkMissingApiKey(feedbackProvider);
     return missingKey ? [`${missingKey.charAt(0).toUpperCase() + missingKey.slice(1)} (for feedback model)`] : [];
+  };
+
+  // Check if DeepEval model needs an API key (different from main and feedback models)
+  const needsDeepEvalApiKey = (): boolean => {
+    if (!deepEvalCloudEnabled || !deepEvalModel || deepEvalModel === 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free') {
+      return false;
+    }
+
+    // Check if DeepEval model is same as main model
+    if (extractionData.selectedModels.length > 0 && deepEvalModel === extractionData.selectedModels[0]) {
+      return false;
+    }
+
+    // Check if DeepEval model is same as feedback model
+    if (extractionData.crossRefineModel && deepEvalModel === extractionData.crossRefineModel) {
+      return false;
+    }
+
+    return true;
   };
 
   // Validate API keys before starting extraction
@@ -487,6 +512,23 @@ export default function ExtractionInterface() {
               setSelectedEvalMetric={setSelectedEvalMetric}
               updateExtractionData={updateExtractionData}
               sessionId={sessionId}
+              deepEvalCloudEnabled={deepEvalCloudEnabled}
+              setDeepEvalCloudEnabled={setDeepEvalCloudEnabled}
+              deepEvalModel={deepEvalModel}
+              setDeepEvalModel={setDeepEvalModel}
+              deepEvalApiKey={deepEvalApiKey}
+              setDeepEvalApiKey={setDeepEvalApiKey}
+              needsDeepEvalApiKey={needsDeepEvalApiKey()}
+              extractionData={extractionData}
+              getModelProvider={getModelProvider}
+              openaiApiKey={openaiApiKey}
+              setOpenaiApiKey={setOpenaiApiKey}
+              anthropicApiKey={anthropicApiKey}
+              setAnthropicApiKey={setAnthropicApiKey}
+              geminiApiKey={geminiApiKey}
+              setGeminiApiKey={setGeminiApiKey}
+              grokApiKey={grokApiKey}
+              setGrokApiKey={setGrokApiKey}
             />
         </div>
       </div>

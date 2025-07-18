@@ -19,12 +19,12 @@ class ExtractionStartRequest(BaseModel):
     models: List[str]
     prompt_styles: List[str]
     file_data: Dict[str, str]  # name and content
-    self_refine_iterations: int = 0
+    refine_iterations: int = 0
     eval_method: Optional[str] = None
     custom_prompt: Optional[str] = None
     api_keys: Dict[str, str] = {}
     cross_refine_model: Optional[str] = None
-    field_mapping: Optional[Dict[str, Optional[str]]] = None
+    field_mapping: Optional[Dict[str, Any]] = None
     eval_metric: Optional[str] = None
 
 class MetricCalculationRequest(BaseModel):
@@ -75,6 +75,27 @@ class BatchSessionMetricRequest(BaseModel):
     metrics: List[str]
     configs: Optional[Dict[str, Dict[str, Any]]] = None
     return_detailed: bool = False
+
+class DeepEvalRequest(BaseModel):
+    """Request for DeepEval dataset creation and evaluation"""
+    session_id: str
+    metric_type: str  # 'faithfulness', 'hallucination', etc.
+    # Model configuration for evaluation
+    model_provider: str  # 'openai', 'gemini', 'anthropic'
+    model_name: str
+    api_key: str
+    # Confident AI cloud configuration (optional)
+    confident_api_key: Optional[str] = None
+    dataset_alias: str = "MyDataset"
+    # Metric configuration
+    threshold: float = 0.7
+    include_reason: bool = True
+    strict_mode: bool = False
+    # Dataset configuration
+    save_to_cloud: bool = False
+    local_directory: str = "./deepeval-test-dataset"
+    # Session management
+    store_api_keys: bool = True  # Whether to store API keys for session duration
 
 class WebSocketMessage(BaseModel):
     type: str

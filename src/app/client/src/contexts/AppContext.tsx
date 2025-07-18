@@ -1,567 +1,122 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { apiRequest } from '@/lib/queryClient';
-import { 
-  Message, 
-  EvaluationData, 
-  NormalizationResponse, 
-  EvaluationResponse, 
-  ModelOption, 
-  PromptStyleOption,
-  ProgressResponse,
-  EvaluationResults,
-  MeteorScore
-} from '@shared/types';
-import { generateId } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
-import { getWsUrl, getApiUrl } from '@/config';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
-type AppMode = 'chat' | 'extraction';
+export type AppMode = 'landing' | 'chat' | 'extraction';
 
-export interface AppContextType {
-  mode: AppMode;
-  toggleMode: () => void;
-  messages: Message[];
-  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  isLoading: boolean;
-  selectedFile: File | null;
-  currentMessage: string;
-  setCurrentMessage: (message: string) => void;
-  sendMessage: () => Promise<void>;
-  handleFileChange: (file: File | null) => void;
-  clearMessages: () => void;
-  selectedModel: ModelOption;
-  setSelectedModel: (model: ModelOption) => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
-  
-  extractionData: EvaluationData; // Now solely for batch extraction/refinement
-  updateExtractionData: (data: Partial<EvaluationData>) => void;
-  resetExtraction: () => void;
-  
-  selectedRefinementMethod: 'SELF-REFINE' | 'CROSS-REFINE' | null;
-  setSelectedRefinementMethod: (method: 'SELF-REFINE' | 'CROSS-REFINE' | null) => void;
-  selfRefineIterations: number;
-  setSelfRefineIterations: (iterations: number) => void;
-  crossRefineIterations: number;
-  setCrossRefineIterations: (iterations: number) => void;
-  
-  progress: number;
-  progressStatus: 'pending' | 'processing' | 'completed' | 'error';
-  startExtraction: (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }) => Promise<void>;
-  stopExtraction: () => void;
-  extractionResults: EvaluationResults | null;
-  
-  logMessages: string[];
-  setLogMessages: React.Dispatch<React.SetStateAction<string[]>>;
+export interface User {
+  firstName: string;
+  lastName: string;
+  email: string;
+  picture: string;
   sessionId: string;
-  extractedFileData: any | null;
 }
 
-const defaultExtractionData: EvaluationData = {
-  file: null,
-  selectedModels: [],
-  selectedPromptStyles: [],
-  fieldMapping: null,
-  evalMetric: null
-};
+interface AppContextType {
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  loading: boolean;
+  signOut: () => Promise<void>;
+}
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<AppMode>('chat');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: generateId(),
-      content: "🤖 Hello! I'm your claim normalization assistant. You can provide your source text to analyze.",
-      sender: 'system',
-      timestamp: new Date()
-    }
-  ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [selectedModel, setSelectedModel] = useState<ModelOption>('meta-llama/Llama-3.3-70B-Instruct-Turbo-Free');
-  const [apiKey, setApiKey] = useState('');
-  const [extractionData, setExtractionData] = useState<EvaluationData>(defaultExtractionData);
-  
-  const [selectedRefinementMethod, setSelectedRefinementMethod] = useState<'SELF-REFINE' | 'CROSS-REFINE' | null>(null);
-  const [selfRefineIterations, setSelfRefineIterations] = useState<number>(1);
-  const [crossRefineIterations, setCrossRefineIterations] = useState<number>(1);
-  
-  const [progress, setProgress] = useState<number>(0);
-  const [progressStatus, setProgressStatus] = useState<'pending' | 'processing' | 'completed' | 'error'>('pending');
-  const [extractionResults, setExtractionResults] = useState<EvaluationResults | null>(null);
-  const [logMessages, setLogMessages] = useState<string[]>([]);
-  const [extractedFileData, setExtractedFileData] = useState<any | null>(null);
-  
-  const { toast } = useToast();
+  const [mode, setMode] = useState<AppMode>('landing');
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const toggleMode = () => {
-    setMode(prevMode => prevMode === 'chat' ? 'extraction' : 'chat');
-  };
-
-  const sendMessage = async () => {
-    console.log('sendMessage called');
-    if (!currentMessage.trim() && !selectedFile) {
-      console.log('No message or file to send');
-      return;
-    }
-    
-    console.log('Creating user message');
-    // Add user message to chat
-    const userMessage: Message = {
-      id: generateId(),
-      content: currentMessage,
-      sender: 'user',
-      timestamp: new Date(),
-      files: selectedFile ? [selectedFile] : undefined
-    };
-    
-    console.log('Adding user message to chat');
-    setMessages(prev => [...prev, userMessage]);
-    setCurrentMessage('');
-    setIsLoading(true);
-    
-    try {
-      console.log('Preparing request data:', {
-        user_query: currentMessage,
-        model: selectedModel,
-        api_key: apiKey ? '***' : undefined
-      });
-
-      const requestBody = {
-        user_query: currentMessage,
-        model: selectedModel,
-        api_key: apiKey
-      };
-
-      console.log('Sending request to /chat');
-      // Call API to normalize claim
-      const response = await fetch(`${getApiUrl()}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log('Response received:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        console.error('Error response:', errorData);
-        throw new Error(errorData?.detail || 'Failed to normalize claim');
-      }
-      
-      const data: NormalizationResponse = await response.json();
-      console.log('Response data:', data);
-      
-      // Add system response
-      const systemMessage: Message = {
-        id: generateId(),
-        content: `**Normalized Claim:** ${data.normalizedClaim}`,
-        sender: 'system',
-        timestamp: new Date()
-      };
-      
-      console.log('Adding system response to chat');
-      setMessages(prev => [...prev, systemMessage]);
-      
-      // Clear file if any
-      setSelectedFile(null);
-    } catch (error) {
-      console.error('Error in sendMessage:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to normalize your claim. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      console.log('Setting isLoading to false');
-      setIsLoading(false);
-    }
-  };
-
-  const handleFileChange = (file: File | null) => {
-    setSelectedFile(file);
-    
-    if (file) {
-      toast({
-        title: "File Ready",
-        description: `"${file.name}" has been selected and is ready to upload.`,
-      });
-    }
-  };
-
-  const clearMessages = () => {
-    setMessages([
-      {
-        id: generateId(),
-        content: "Hello! I'm your claim normalization assistant. You can provide me your source text to analyze.",
-        sender: 'system',
-        timestamp: new Date()
-      }
-    ]);
-    setSelectedFile(null);
-  };
-
-  const updateExtractionData = (data: Partial<EvaluationData>) => {
-    setExtractionData(prev => ({ ...prev, ...data }));
-  };
-
-  const resetExtraction = () => {
-    setExtractionData(defaultExtractionData);
-    setSelectedRefinementMethod(null);
-    setSelfRefineIterations(1);
-    setCrossRefineIterations(1);
-    setProgress(0);
-    setProgressStatus('pending');
-    setExtractionResults(null);
-    setExtractedFileData(null);
-    setIsLoading(false); // Ensure loading state is cleared
-  };
-  
-  // WebSocket for real-time extraction updates
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const [sessionId, setSessionId] = useState<string>('');
-
-  // Generate session ID on mount
   useEffect(() => {
-    const id = Math.random().toString(36).substring(2, 15);
-    setSessionId(id);
+    // Check for existing session on mount
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        
+        if (event === 'SIGNED_IN' && session) {
+          const supabaseUser = session.user;
+          const userInfo = extractUserInfo(supabaseUser);
+          setUser(userInfo);
+          localStorage.setItem('supabase_user', JSON.stringify(userInfo));
+          setMode('chat'); // Redirect to chat after login
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          localStorage.removeItem('supabase_user');
+          setMode('landing'); // Redirect to landing after logout
+        }
+        
+        setLoading(false);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  // New methods for extraction with progress tracking using WebSocket
-  const startExtraction = async (apiKeys?: { openai?: string; anthropic?: string; gemini?: string; grok?: string }): Promise<void> => {
-    // Validation
-    if (extractionData.selectedModels.length === 0 || extractionData.selectedPromptStyles.length === 0) {
-      toast({
-        title: "Selection Required",
-        description: "Please select one model and one prompt style.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!extractionData.file) {
-      toast({
-        title: "File Required",
-        description: "Please upload a dataset file.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!extractionData.fieldMapping || !extractionData.fieldMapping.inputText) {
-      toast({
-        title: "Field Mapping Required",
-        description: "Please map the input text field for your dataset.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!sessionId) {
-      toast({
-        title: "Error",
-        description: "Session not initialized. Please refresh the page.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setProgressStatus('processing');
-    setProgress(0);
-    // Don't set isLoading for WebSocket extraction since we have real-time updates
-    
+  const checkSession = async () => {
     try {
-      // Create WebSocket connection
-      const wsUrl = `${getWsUrl()}/ws/extraction/${sessionId}`;
-      const websocket = new WebSocket(wsUrl);
+      const { data: { session } } = await supabase.auth.getSession();
       
-      websocket.onopen = () => {
-        setLogMessages(prev => [...prev, `> Connected to extraction service (Session: ${sessionId})`]);
-        
-        // Calculate iterations based on selected refinement method
-        let iterations = 0;
-        if (selectedRefinementMethod === 'SELF-REFINE') {
-          iterations = selfRefineIterations;
-        } else if (selectedRefinementMethod === 'CROSS-REFINE') {
-          iterations = crossRefineIterations;
-        }
-        
-        // Convert file to base64
-        const reader = new FileReader();
-        reader.onload = () => {
-          const fileContent = reader.result as string;
-          const base64Content = fileContent.split(',')[1]; // Remove data:... prefix
-          
-          // Check file size and warn user if it's large
-          const fileSizeInMB = extractionData.file!.size / (1024 * 1024);
-          const base64SizeInMB = (base64Content.length * 0.75) / (1024 * 1024); // Base64 is ~33% larger
-          
-          if (fileSizeInMB > 2) {
-            setLogMessages(prev => [...prev, `> Warning: Large file detected (${fileSizeInMB.toFixed(1)}MB). This may cause connection issues.`]);
-            
-            if (fileSizeInMB > 5) {
-              setLogMessages(prev => [...prev, `> Consider reducing file size or splitting into smaller chunks.`]);
-            }
+      if (session) {
+        const userInfo = extractUserInfo(session.user);
+        setUser(userInfo);
+        setMode('chat');
+      } else {
+        // Check localStorage for persisted user info (fallback)
+        const savedUser = localStorage.getItem('supabase_user');
+        if (savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            setUser(parsedUser);
+            setMode('chat');
+          } catch (e) {
+            console.error('Error parsing saved user:', e);
+            localStorage.removeItem('supabase_user');
           }
-          
-          // Prepare extraction data
-          const extractionPayload = {
-            type: 'start_extraction',
-            data: {
-              models: extractionData.selectedModels,
-              prompt_styles: extractionData.selectedPromptStyles,
-              file_data: {
-                name: extractionData.file!.name,
-                content: base64Content
-              },
-              self_refine_iterations: iterations,
-              eval_method: selectedRefinementMethod,
-              custom_prompt: extractionData.customPrompt || null,
-              api_keys: apiKeys || {},
-              cross_refine_model: extractionData.crossRefineModel || null,
-              field_mapping: extractionData.fieldMapping || null,
-              eval_metric: extractionData.evalMetric || null
-            }
-          };
-          
-          setLogMessages(prev => [...prev, `> Sending extraction request...`]);
-          // Send extraction request
-          websocket.send(JSON.stringify(extractionPayload));
-        };
-        
-        reader.onerror = () => {
-          setLogMessages(prev => [...prev, `✗ Failed to read file`]);
-          setProgressStatus('error');
-        };
-        
-        reader.readAsDataURL(extractionData.file!);
-      };
-      
-      websocket.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        
-        switch (message.type) {
-          case 'progress':
-            setProgress(message.data.percentage || 0);
-            break;
-            
-          case 'log':
-            // Add server logs with terminal-style prefix
-            setLogMessages(prev => [...prev, `$ ${message.data.message}`]);
-            break;
-            
-          case 'log_batch':
-            // Handle batched log messages
-            if (message.data.messages && Array.isArray(message.data.messages)) {
-              const newLogMessages = message.data.messages.map((logData: any) => `$ ${logData.message}`);
-              setLogMessages(prev => [...prev, ...newLogMessages]);
-            }
-            break;
-            
-          case 'status':
-            // Add status updates with different prefix
-            setLogMessages(prev => [...prev, `> ${message.data.message}`]);
-            if (message.data.message.includes('stopped') || message.data.message.includes('cancelled')) {
-              setProgressStatus('error');
-              setLogMessages(prev => [...prev, `✗ Extraction stopped`]);
-              websocket.close(1000, 'Extraction stopped');
-              
-              toast({
-                title: "Extraction Stopped",
-                description: "The extraction has been stopped.",
-                variant: "default",
-              });
-            }
-            break;
-            
-          case 'complete':
-            setLogMessages(prev => [...prev, `✓ Extraction completed successfully`]);
-            
-            // Store file data if provided
-            if (message.data.file_data) {
-              setExtractedFileData(message.data.file_data);
-              setLogMessages(prev => [...prev, `> Extracted data saved: ${message.data.file_data.data?.length || 0} rows`]);
-            }
-            
-            if (message.data.scores) {
-              // Convert scores to the expected format
-              const results: MeteorScore[] = Object.entries(message.data.scores).map(([key, score]) => {
-                const [model_name, prompt_style] = key.split('_');
-                return {
-                  model: model_name.replace(/_/g, '/'), // Convert back to original model name
-                  promptStyle: prompt_style.replace(/_/g, '-'),
-                  score: score as number
-                };
-              });
-              
-              setExtractionResults({
-                scores: results,
-                timestamp: new Date()
-              });
-              
-              // Add final scores to log
-              results.forEach(result => {
-                setLogMessages(prev => [...prev, `  ${result.model} (${result.promptStyle}): ${result.score.toFixed(4)}`]);
-              });
-            }
-             setProgressStatus('completed');
-             setProgress(100);
-             websocket.close();
-            
-            toast({
-              title: "Extraction Complete",
-              description: "Successfully completed the extraction.",
-              variant: "default",
-            });
-            break;
-            
-          case 'error':
-            setLogMessages(prev => [...prev, `✗ Error: ${message.data.message}`]);
-            setProgressStatus('error');
-            websocket.close();
-            
-            toast({
-              title: "Error",
-              description: message.data.message,
-              variant: "destructive",
-            });
-            break;
         }
-      };
-      
-      websocket.onerror = (error) => {
-        setLogMessages(prev => [...prev, `✗ Connection error: Failed to connect to extraction service`]);
-        setProgressStatus('error');
-        
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to the extraction service.",
-          variant: "destructive",
-        });
-      };
-      
-      websocket.onclose = (event) => {
-        // Handle specific close codes
-        if (event.code === 1009) {
-          setLogMessages(prev => [...prev, `✗ File too large for WebSocket transmission`]);
-          setLogMessages(prev => [...prev, `> Try using a smaller file (< 2MB) or reduce the number of rows`]);
-          setProgressStatus('error');
-          toast({
-            title: "File Too Large",
-            description: "Please use a smaller file (< 2MB) or reduce the dataset size.",
-            variant: "destructive",
-          });
-        } else if (event.code !== 1000 && progressStatus !== 'completed') {
-          setLogMessages(prev => [...prev, `> Connection closed unexpectedly (code: ${event.code})`]);
-          if (progressStatus === 'processing') {
-            setProgressStatus('error');
-            toast({
-              title: "Connection Lost",
-              description: "Connection to extraction service was lost.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          setLogMessages(prev => [...prev, `> Disconnected from extraction service`]);
-        }
-        setWs(null);
-      };
-      
-      setWs(websocket);
-      
+      }
     } catch (error) {
-      setLogMessages(prev => [...prev, `✗ Failed to start extraction: ${error instanceof Error ? error.message : 'Unknown error'}`]);
-      setProgressStatus('error');
-      
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to start the extraction.",
-        variant: "destructive",
-      });
+      console.error('Error checking session:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Function to stop extraction
-  const stopExtraction = () => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      // Send stop message
-      ws.send(JSON.stringify({ type: 'stop_extraction' }));
-      
-      // Update state immediately
-      setProgressStatus('error');
-      setLogMessages(prev => [...prev, `✗ Extraction stopped by user`]);
-      
-      // Close WebSocket connection after a short delay to allow server to process stop message
-      setTimeout(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.close(1000, 'Extraction stopped by user');
-        }
-      }, 500);
-      
-      toast({
-        title: "Extraction Stopped",
-        description: "The extraction has been stopped successfully.",
-        variant: "default",
-      });
-    } else {
-      // If WebSocket is not connected, just update the state
-      setProgressStatus('error');
-      setLogMessages(prev => [...prev, `✗ Extraction stopped (no active connection)`]);
-      
-      toast({
-        title: "Extraction Stopped",
-        description: "The extraction has been stopped successfully.",
-        variant: "default",
-      });
+  const extractUserInfo = (supabaseUser: SupabaseUser): User => {
+    return {
+      firstName: supabaseUser.user_metadata?.given_name || supabaseUser.user_metadata?.name?.split(' ')[0] || '',
+      lastName: supabaseUser.user_metadata?.family_name || supabaseUser.user_metadata?.name?.split(' ')[1] || '',
+      email: supabaseUser.email || '',
+      picture: supabaseUser.user_metadata?.avatar_url || supabaseUser.user_metadata?.picture || '',
+      sessionId: supabaseUser.id // Use Supabase user ID as session ID
+    };
+  };
+
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      localStorage.removeItem('supabase_user');
+      setMode('landing');
+    } catch (error) {
+      console.error('Error signing out:', error);
     }
   };
-  
-  const contextValue = useMemo(() => ({
+
+  const value: AppContextType = {
     mode,
-    toggleMode,
-    messages,
-    setMessages,
-    isLoading,
-    selectedFile,
-    currentMessage,
-    setCurrentMessage,
-    sendMessage,
-    handleFileChange,
-    clearMessages,
-    selectedModel,
-    setSelectedModel,
-    apiKey,
-    setApiKey,
-    extractionData,
-    updateExtractionData,
-    resetExtraction,
-    selectedRefinementMethod,
-    setSelectedRefinementMethod,
-    selfRefineIterations,
-    setSelfRefineIterations,
-    crossRefineIterations,
-    setCrossRefineIterations,
-    progress,
-    progressStatus,
-    startExtraction,
-    stopExtraction,
-    extractionResults,
-    logMessages,
-    setLogMessages,
-    sessionId,
-    extractedFileData: extractedFileData
-  }), [
-    mode, messages, isLoading, selectedFile, currentMessage, selectedModel, apiKey,
-    extractionData, selectedRefinementMethod, selfRefineIterations, crossRefineIterations,
-    progress, progressStatus, extractionResults, logMessages, sessionId, extractedFileData
-  ]);
+    setMode,
+    user,
+    setUser,
+    loading,
+    signOut
+  };
 
   return (
-    <AppContext.Provider value={contextValue}>
+    <AppContext.Provider value={value}>
       {children}
     </AppContext.Provider>
   );

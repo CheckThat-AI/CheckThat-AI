@@ -6,4 +6,6 @@ export { default as ExtractionMetricsCard } from './ExtractionMetricsCard';
 export { default as FileUploadCard } from './FileUploadCard';
 export { default as ExtractionProgressCard } from './ExtractionProgressCard';
 export { default as ExtractionInterface } from '../ExtractionInterface';
-export { default as ExtractionResults } from './ExtractionResults'; 
+export { default as ExtractionResults } from './ExtractionResults';
+export { default as DeepEvalModal } from './DeepEvalModal';
+export { default as EvaluationResultsSection } from './EvaluationResultsSection'; 

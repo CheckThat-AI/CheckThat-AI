@@ -42,7 +42,7 @@ def main():
     
     DEV_DATA = pd.read_csv(FILE_PATH)
 
-    METEOR_SCORE = start_extraction(MODEL, PROMPT_STYLE, DEV_DATA, REFINE_ITERATIONS, CROSS_REFINE_MODEL)
+    METEOR_SCORE = start_extraction(MODEL, PROMPT_STYLE, DEV_DATA[0:1], REFINE_ITERATIONS, CROSS_REFINE_MODEL)
     
     print(f"\nAverage METEOR Score: {METEOR_SCORE}")
     

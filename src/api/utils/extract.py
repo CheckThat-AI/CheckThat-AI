@@ -4,14 +4,34 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Optional, Union
 import re
+import logging
 
 from .self_refine import self_refine
+
+logger = logging.getLogger(__name__)
 
 def clean_filename(text: str) -> str:
     """Convert text to a valid filename by removing invalid characters"""
     return re.sub(r'[\\/*?:"<>|]', "_", text)
 
-def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, refine_iters: int, cross_refine_model: Optional[str] = None, progress_callback=None, stop_event=None) -> Union[Tuple[str, List[str], List[str]], bool]:
+def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, refine_iters: int, cross_refine_model: Optional[str] = None, progress_callback=None, stop_event=None, custom_prompt: Optional[str] = None, session_id: Optional[str] = None) -> Union[Tuple[str, List[str], List[str]], bool]:
+    """
+    Perform claim extraction on the given data using specified model and prompt style.
+    
+    Args:
+        model: The model to use for extraction
+        prompt_style: The prompting strategy to use
+        input_data: DataFrame containing the posts to process
+        refine_iters: Number of self-refinement iterations
+        cross_refine_model: Optional model for cross-refinement
+        progress_callback: Optional callback for progress updates
+        stop_event: Optional event to signal stopping
+        custom_prompt: Optional custom prompt to use instead of predefined styles
+        session_id: Optional session ID for multi-user support
+        
+    Returns:
+        Tuple of (file_path, extracted_claims, reference_claims) on success, False on failure/stop
+    """
     try:
         # Dictionary to store results by model and prompt style
         results_by_combination: Dict[str, Dict[str, List]] = {}
@@ -31,10 +51,13 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
         combo_key = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
         
         results_by_combination[combo_key] = {
-            'responses': [],
-            'labels': [],
+            'input': [],
+            'actual_output': [],
+            'context': [],
+            'retrieval_context': [],
             'model': [],
-            'prompt_style': []
+            'prompt_style': [],
+            'session_id': []  # Add session_id column for multi-user support
         }
         
         total_items = len(input_data)
@@ -63,27 +86,81 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
             
             # Check for empty/invalid data more safely
             post_empty = str(item['post']).strip() == ""
-            normalized_claim = item['normalized claim']
             
-            # Check if normalized claim is invalid (NaN, None, empty string, etc.)
-            claim_invalid = False
-            try:
-                if pd.isna(normalized_claim) or str(normalized_claim).strip() in ["", "nan", "NaN", "None"]:
+            # Handle reference claims (normalized claim column may not exist)
+            normalized_claim = None
+            claim_invalid = True  # Default to invalid if no reference claims
+            
+            if 'normalized claim' in input_data.columns:
+                normalized_claim = item['normalized claim']
+                # Check if normalized claim is invalid (NaN, None, empty string, etc.)
+                try:
+                    if pd.isna(normalized_claim) or str(normalized_claim).strip() in ["", "nan", "NaN", "None"]:
+                        claim_invalid = True
+                    else:
+                        claim_invalid = False
+                except Exception:
                     claim_invalid = True
-            except Exception:
-                claim_invalid = True
+            else:
+                # No reference claims available - this is valid for referenceless metrics
+                normalized_claim = item['post']  # Use post as placeholder for reference
+                claim_invalid = False  # Not invalid, just no reference available
+                print(f"No reference claims column found - dataset suitable for referenceless metrics only")
             
-            if post_empty or claim_invalid:
-                print(f"Skipping item: {item['post']} and {item['normalized claim']}")
-                results_by_combination[combo_key]['responses'].append(str(item['post']))
-                results_by_combination[combo_key]['labels'].append(str(item['post']))
+            # Construct the user prompt based on prompt style or use custom prompt
+            if custom_prompt:
+                # For custom prompts, use the custom prompt with the post content
+                # The custom prompt should include {post} placeholder or similar
+                if "{post}" in custom_prompt:
+                    user_input = custom_prompt.replace("{post}", str(item['post']))
+                elif "{input}" in custom_prompt:
+                    user_input = custom_prompt.replace("{input}", str(item['post']))
+                else:
+                    # If no placeholder, append the post to the custom prompt
+                    user_input = f"{custom_prompt} {item['post']}"
+            else:
+                # Use default prompt styles
+                from .prompts import instruction, chain_of_thought_trigger, few_shot_prompt, few_shot_CoT_prompt
+                
+                if prompt_style == "Zero-shot":
+                    user_input = f"{instruction} {item['post']}"
+                elif prompt_style == "Zero-shot-CoT":
+                    user_input = f"{instruction} {item['post']}\n{chain_of_thought_trigger}"
+                elif prompt_style == "Few-shot":
+                    user_input = f"{few_shot_prompt}\n{instruction} {item['post']} "
+                elif prompt_style == "Few-shot-CoT":
+                    user_input = f"{few_shot_CoT_prompt}\n{instruction}{item['post']}\n{chain_of_thought_trigger}"
+                else:
+                    user_input = f"{instruction} {item['post']}"  # Fallback to zero-shot
+            
+            if post_empty:
+                print(f"Skipping item with empty post: {item['post']}")
+                results_by_combination[combo_key]['input'].append(user_input)
+                results_by_combination[combo_key]['actual_output'].append("No output - empty post")
+                results_by_combination[combo_key]['context'].append(str(item['post']))
+                results_by_combination[combo_key]['retrieval_context'].append(str(item['post']))
                 results_by_combination[combo_key]['model'].append(model)
                 results_by_combination[combo_key]['prompt_style'].append(prompt_style)
+                results_by_combination[combo_key]['session_id'].append(session_id or "unknown")
+            elif claim_invalid and 'normalized claim' in input_data.columns:
+                # Only skip if we have reference claims column but the claim is invalid
+                print(f"Skipping item with invalid reference claim: {item['post']} and {normalized_claim}")
+                results_by_combination[combo_key]['input'].append(user_input)
+                results_by_combination[combo_key]['actual_output'].append("No output - invalid reference claim")
+                results_by_combination[combo_key]['context'].append(str(item['post']))
+                results_by_combination[combo_key]['retrieval_context'].append(str(item['post']))
+                results_by_combination[combo_key]['model'].append(model)
+                results_by_combination[combo_key]['prompt_style'].append(prompt_style)
+                results_by_combination[combo_key]['session_id'].append(session_id or "unknown")
             else:
                 if progress_callback:
                     progress_callback("log", {"message": f"Processing item {processed_count}/{total_items}: {item['post'][:50]}...", "model": model, "prompt_style": prompt_style, "type": "item_processed"})
                 
-                response_text, logs_from_self_refine = self_refine(model, item['post'], prompt_style, refine_iters, cross_refine_model)
+                # Pass the custom prompt to self_refine if available
+                if custom_prompt:
+                    response_text, logs_from_self_refine = self_refine(model, item['post'], "Custom", refine_iters, cross_refine_model, custom_prompt)
+                else:
+                    response_text, logs_from_self_refine = self_refine(model, item['post'], prompt_style, refine_iters, cross_refine_model)
 
                 # Send only important logs from self_refine to reduce WebSocket overhead
                 if progress_callback and logs_from_self_refine:
@@ -99,10 +176,13 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
                         # Always print to server console for debugging
                         # print(f"[SELF_REFINE] {log_entry.get('message', '')}")
 
-                results_by_combination[combo_key]['responses'].append(response_text)
-                results_by_combination[combo_key]['labels'].append(str(normalized_claim))
+                results_by_combination[combo_key]['input'].append(user_input)
+                results_by_combination[combo_key]['actual_output'].append(response_text)
+                results_by_combination[combo_key]['context'].append(str(item['post']))
+                results_by_combination[combo_key]['retrieval_context'].append(str(item['post']))
                 results_by_combination[combo_key]['model'].append(model)
                 results_by_combination[combo_key]['prompt_style'].append(prompt_style)
+                results_by_combination[combo_key]['session_id'].append(session_id or "unknown")
             
             # Update per-combination progress and send log if changed significantly
             combo_key_current = f"{clean_filename(model)}_{clean_filename(prompt_style)}"
@@ -149,7 +229,7 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
             new_data = {
                 'model': model,
                 'prompt_style': prompt_style,
-                'total_processed': len(results['responses']),
+                'total_processed': len(results['actual_output']),
             }
 
             extraction_log_path = os.path.join(data_dir, "results", "extraction_log.jsonl")
@@ -159,10 +239,13 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
         
         # Save combined results
         combined_results = {
-            'responses': [],
-            'labels': [],
+            'input': [],
+            'actual_output': [],
+            'context': [],
+            'retrieval_context': [],
             'model': [],
-            'prompt_style': []
+            'prompt_style': [],
+            'session_id': []
         }
         
         for results in results_by_combination.values():
@@ -172,9 +255,23 @@ def start_extraction(model: str, prompt_style: str, input_data: pd.DataFrame, re
         combined_results_path = os.path.join(data_dir, "inference_results.csv")
         pd.DataFrame(combined_results).to_csv(combined_results_path, index=False)
         
-        # Extract claims for return
-        extracted_claims = combined_results['responses']
-        reference_claims = combined_results['labels']
+        # Also save session-specific combined results if session_id is provided
+        if session_id:
+            session_results_path = os.path.join(data_dir, f"inference_results_{session_id}.csv")
+            pd.DataFrame(combined_results).to_csv(session_results_path, index=False)
+            logger.info(f"Saved session-specific results to: {session_results_path}")
+            
+            # Also save session-specific files in results directory
+            for combo_key, results in results_by_combination.items():
+                session_combo_path = os.path.join(results_dir, f"inference_results_{session_id}_{combo_key}.csv")
+                pd.DataFrame(results).to_csv(session_combo_path, index=False)
+                logger.info(f"Saved session-specific combo results to: {session_combo_path}")
+        
+        # Extract claims for return (maintain backward compatibility with existing code)
+        extracted_claims = combined_results['actual_output']
+        # For faithfulness evaluation, reference_claims should always be the original posts
+        # not the normalized claims, since we need the full social media post as context
+        reference_claims = [item['post'] for _, item in input_data.iterrows()]
         
         # Return tuple of (file_path, extracted_claims, reference_claims) on success
         return (combined_results_path, extracted_claims, reference_claims)

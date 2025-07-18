@@ -69,7 +69,7 @@ const EvaluationResultsComponent: React.FC<EvaluationResultsProps> = ({
     const scorePercentage = Math.round(singleScore.score * 100);
     
     return (
-      <div className="mt-8">
+      <div className="mt-10">
         <h3 className="text-lg font-medium text-slate-800 mb-4">Evaluation Results</h3>
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}

@@ -4,7 +4,7 @@ Utility functions for metric calculation that can be integrated into existing se
 
 import logging
 from typing import List, Dict, Any, Optional, Union
-from ..services.metrics_service import metrics_service
+from ..services.eval_service import eval_service
 from ..models.requests import MetricCalculationRequest, BatchMetricRequest
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ def calculate_single_metric(
             return_detailed=return_detailed
         )
         
-        result = metrics_service.calculate_metric(request)
+        result = eval_service.calculate_metric(request)
         return result.dict()
         
     except Exception as e:
@@ -80,7 +80,7 @@ def calculate_multiple_metrics(
             return_detailed=return_detailed
         )
         
-        result = metrics_service.calculate_batch_metrics(request)
+        result = eval_service.calculate_batch_metrics(request)
         return result.dict()
         
     except Exception as e:
@@ -185,7 +185,7 @@ def calculate_evaluation_metrics(
 
 def get_supported_metrics() -> List[str]:
     """Get list of supported metric types."""
-    return metrics_service.get_supported_metrics()
+    return eval_service.get_supported_metrics()
 
 def get_metric_config_schema(metric_type: str) -> Dict[str, Any]:
     """
@@ -201,7 +201,7 @@ def get_metric_config_schema(metric_type: str) -> Dict[str, Any]:
         ValueError: If metric type is not supported
     """
     try:
-        info = metrics_service.get_metric_info(metric_type)
+        info = eval_service.get_metric_info(metric_type)
         return info["config_schema"]
     except Exception as e:
         logger.error(f"Error getting config schema for {metric_type}: {str(e)}")

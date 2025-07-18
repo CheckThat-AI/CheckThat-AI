@@ -26,7 +26,7 @@ def format_feedback_for_prompt(feedback: Feedback) -> str:
     
     return "\n".join(formatted_parts)
 
-def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: int, cross_refine_model: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
+def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: int, cross_refine_model: Optional[str] = None, custom_prompt: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
     """
     This function takes a list of models, a user prompt, and a list of prompt styles,
     and returns the generated response using the first model and prompt style in the lists.
@@ -44,7 +44,17 @@ def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: i
     
     logs: List[Dict[str, Any]] = []
 
-    if prompt_style == "Zero-shot":
+    # Handle custom prompt or default prompt styles
+    if custom_prompt:
+        # For custom prompts, use the custom prompt with the post content
+        if "{post}" in custom_prompt:
+            user_prompt = custom_prompt.replace("{post}", user_prompt)
+        elif "{input}" in custom_prompt:
+            user_prompt = custom_prompt.replace("{input}", user_prompt)
+        else:
+            # If no placeholder, append the post to the custom prompt
+            user_prompt = f"{custom_prompt} {user_prompt}"
+    elif prompt_style == "Zero-shot":
         user_prompt = f"{instruction} {user_prompt}"
     elif prompt_style == "Zero-shot-CoT":
         user_prompt = f"{instruction} {user_prompt}\n{chain_of_thought_trigger}"

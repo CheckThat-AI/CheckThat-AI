@@ -20,7 +20,9 @@ VALID_MODELS = [
     "gpt-4.1-nano-2025-04-14",
     "gemini-2.5-pro-preview-05-06",
     "gemini-2.5-flash-preview-04-17",
-    "grok-3-mini"
+    "grok-3",
+    "grok-3-mini",
+    "grok-3-mini-fast"
 ]
 
 def get_api_provider(model: str) -> str:

@@ -45,6 +45,20 @@ from .faithfulness import (
     FaithfulnessResult
 )
 
+from .hallucination import (
+    HallucinationCalculator,
+    HallucinationConfig,
+    HallucinationResult
+)
+
+from .answerRelevancy import (
+    AnswerRelevancyCalculator,
+    AnswerRelevancyConfig,
+    AnswerRelevancyResult,
+    calculate_answer_relevancy_score,
+    calculate_answer_relevancy_score_batch
+)
+
 __all__ = [
     # METEOR
     "MeteorCalculator",
@@ -84,5 +98,17 @@ __all__ = [
     # Faithfulness (DeepEval)
     "FaithfulnessCalculator",
     "FaithfulnessConfig", 
-    "FaithfulnessResult"
+    "FaithfulnessResult",
+    
+    # Hallucination (DeepEval)
+    "HallucinationCalculator",
+    "HallucinationConfig",
+    "HallucinationResult",
+    
+    # Answer Relevancy
+    "AnswerRelevancyCalculator",
+    "AnswerRelevancyConfig",
+    "AnswerRelevancyResult",
+    "calculate_answer_relevancy_score",
+    "calculate_answer_relevancy_score_batch",
 ] 

@@ -44,6 +44,13 @@ async def websocket_extraction(websocket: WebSocket, session_id: str):
                     "data": {"message": "Stopping extraction..."}
                 })
                 
+            elif message.get("type") == "start_deepeval":
+                # Handle DeepEval evaluation start
+                await websocket_manager.send_message(session_id, {
+                    "type": "deepeval_started",
+                    "data": {"message": "DeepEval evaluation started, keeping connection alive for progress updates..."}
+                })
+                
             elif message.get("type") == "ping":
                 # Keep connection alive
                 await websocket_manager.send_message(session_id, {

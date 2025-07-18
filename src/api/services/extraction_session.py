@@ -23,6 +23,9 @@ class ExtractionData:
     metadata: Dict[str, Any]
     created_at: float
     last_accessed: float
+    # Prompt information for dataset creation
+    prompt_info: Optional[Dict[str, Any]] = None  # Store prompt details for test case creation
+    field_mapping: Optional[Dict[str, Any]] = None  # Store field mapping for evaluation
 
 class ExtractionSessionManager:
     """
@@ -52,7 +55,9 @@ class ExtractionSessionManager:
         extracted_claims: List[str],
         reference_claims: List[str],
         model_combinations: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        prompt_info: Optional[Dict[str, Any]] = None,
+        field_mapping: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
         Store extraction data for a session.
@@ -63,6 +68,8 @@ class ExtractionSessionManager:
             reference_claims: Ground truth claims from dataset
             model_combinations: List of model+prompt combinations used
             metadata: Additional metadata about the extraction
+            prompt_info: Information about the prompt used (custom or style ID)
+            field_mapping: Field mapping configuration used
             
         Returns:
             True if stored successfully, False otherwise
@@ -84,7 +91,9 @@ class ExtractionSessionManager:
                     model_combinations=model_combinations or [],
                     metadata=metadata or {},
                     created_at=current_time,
-                    last_accessed=current_time
+                    last_accessed=current_time,
+                    prompt_info=prompt_info,
+                    field_mapping=field_mapping
                 )
                 
                 self._sessions[session_id] = extraction_data
