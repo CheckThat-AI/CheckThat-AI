@@ -13,10 +13,14 @@ __pycache__
 /src/data/results/scores.jsonl
 src/data
 .github/instructions
+.cursor
+.deepeval
 
 # Node.js dependencies (but keep package.json and package-lock.json)
 node_modules/
 src/app/node_modules/
+package.json
+package-lock.json
 
 # Build outputs
 dist/
