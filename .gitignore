@@ -12,6 +12,7 @@ __pycache__
 *.csv
 /src/data/results/scores.jsonl
 src/data
+.github/instructions
 
 # Node.js dependencies (but keep package.json and package-lock.json)
 node_modules/

@@ -1,0 +1,16 @@
+---
+description: Helpful to implement UI components of the shadcn ui library for any react plus vite based front-end webpages built using typesctipt.
+alwaysApply: false
+---
+
+Usage Rule
+When asked to use shadcn components, use the MCP server.
+
+Planning Rule
+When asked to plan using anything related to shadcn:
+Use the MCP server during planning
+Apply components wherever applicable
+Use whole blocks wherever possible. For example, Login page, Clendar, etc.
+
+Implementation Rule
+When impelementing, first call the demo tool to see and the understand the usgae and proceed to implementing without any confusion or mistakes.
