@@ -24,7 +24,7 @@ const Hero = ({ onStartGuestSession }: HeroProps) => {
       <section className="w-full min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-6xl mx-auto text-center">
           {/* Y Combinator Badge */}
-          <div className="flex justify-center mb-8">
+          {/* <div className="flex justify-center mb-8">
             <div className="flex items-center gap-2 bg-muted/50 border rounded-full px-4 py-2 backdrop-blur-sm hover:bg-muted/70 transition-colors">
               <div className="w-6 h-6 bg-orange-500 rounded-sm flex items-center justify-center">
                 <span className="text-white font-bold text-sm">Y</span>
@@ -32,28 +32,26 @@ const Hero = ({ onStartGuestSession }: HeroProps) => {
               <span className="text-muted-foreground text-sm font-medium">Backed by</span>
               <span className="text-foreground font-semibold text-sm">Y Combinator</span>
             </div>
-          </div>
+          </div> */}
 
           {/* Main Heading */}
           <div className="w-full">
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-tight mb-6 text-foreground">
-              The LLM{' '}
+              The LLM powered Claim {' '}
               <span className="bg-gradient-to-r from-purple-400 via-violet-400 to-blue-400 bg-clip-text text-transparent">
-                Evaluation
+                Normalization
               </span>{' '}
-              & Observability
               <br />
               Platform for{' '}
               <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                CheckThat
+                Fact-Checking
               </span>
             </h1>
             
             <div className="w-full max-w-4xl mx-auto">
               <p className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed">
-                Built for the CLEF 2025 CheckThat Lab Task 2, our platform helps engineering teams 
-                benchmark, safeguard, and improve claim normalization applications, with best-in-class 
-                metrics and tracing.
+                Built for the large scale fact-checking applications, our platform helps engineering teams 
+                extract, normalize, and evaluate claims, with best-in-class LLM Evaluation metrics and tracing in real-time.
               </p>
             </div>
 
@@ -73,24 +71,6 @@ const Hero = ({ onStartGuestSession }: HeroProps) => {
                 Try for Free
                 <ArrowRight className="w-4 h-4" />
               </Button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Browser mockup with dots */}
-      <section className="w-full flex justify-center px-4 sm:px-6 lg:px-8 pb-20">
-        <div className="w-full max-w-6xl mx-auto">
-          <div className="bg-card border rounded-t-xl p-4 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-b from-card to-muted border-x border-b rounded-b-xl h-64 sm:h-80 md:h-96 flex items-center justify-center">
-            <div className="text-muted-foreground text-base sm:text-lg text-center px-4">
-              Platform Preview Coming Soon
             </div>
           </div>
         </div>
