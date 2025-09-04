@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar } from "@radix-ui/react-avatar";
 import { useNavigate } from "react-router-dom";
+import { MaintenanceBanner } from "@/components/ui/MaintenanceBanner";
 
 interface LoginProps {
   onSuccess?: () => void;
@@ -43,11 +44,7 @@ export const Login = ({ onSuccess: _ }: LoginProps) => {
       // Clear any existing guest session before starting OAuth
       localStorage.removeItem('guest_session');
       
-      console.log('Initiating Google OAuth login...');
-      console.log('Current URL:', window.location.href);
-      console.log('Redirect URL:', `${window.location.origin}/auth/callback`);
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           scopes: 'openid https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
@@ -62,9 +59,6 @@ export const Login = ({ onSuccess: _ }: LoginProps) => {
       if (error) {
         console.error('OAuth initiation error:', error);
         alert('Error logging in with Google: ' + error.message);
-      } else {
-        console.log('OAuth login initiated successfully:', data);
-        console.log('Should redirect to Google now...');
       }
       // Note: Don't call onSuccess here - it should be called after successful authentication
       // The OAuth flow will redirect to Google, then back to our auth/callback page
@@ -85,10 +79,14 @@ export const Login = ({ onSuccess: _ }: LoginProps) => {
         </p>
       </DialogHeader>
       
+      {/* Maintenance Notice Banner */}
+      <MaintenanceBanner />
+      
       <div className="flex flex-col space-y-4">
         <Button 
           onClick={handleGoogleLogin} 
-          className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-3"
+          disabled={true}
+          className="w-full bg-secondary hover:bg-secondary/80 text-secondary-foreground font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-3 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
