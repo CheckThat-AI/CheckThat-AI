@@ -1,0 +1,50 @@
+from api.utils.extract import start_extraction
+import pandas as pd
+import argparse
+import os
+
+def main():
+    
+    parser = argparse.ArgumentParser(
+        description="""Evaluating the chosen model's performance with METEOR Score on the data set.
+        Accepted model names: Llama, OpenAI, Gemini, Grok.
+        Accepted prompt styles: Zero-shot, Few-shot, Zero-shot-CoT, Few-shot-CoT.
+        Accepted self-refine iterations: Integer values only.
+        Accepted data file format: CSV file only.
+        Note: If no arguments are provided, default values will be used."""
+    )
+    parser.add_argument("-p", "--prompt", type=str, help="Prompt style.")
+    parser.add_argument("-d", "--data", type=str, help="Path to the CSV file containing the dev set.")
+    parser.add_argument("-m", "--model", type=str, help="Model name.")
+    parser.add_argument("-c", "--cross_refine_model", type=str, help="Cross-refine model name.")
+    parser.add_argument("-it", "--iters", type=str, help="Number of self-refine iterations.")
+    args = parser.parse_args()
+
+    
+    FILE_PATH: str
+    DEV_DATA: pd.DataFrame
+    MODEL: str
+    PROMPT: str
+    REFINE_ITERATIONS: int
+    CROSS_REFINE_MODEL: str
+    
+    PROMPT_STYLE = args.prompt if args.prompt else "Zero-shot"    
+    MODEL = args.model if args.model else "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free"
+    REFINE_ITERATIONS: int = int(args.iters) if args.iters else 0
+    CROSS_REFINE_MODEL = args.cross_refine_model if args.cross_refine_model else None
+    
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    FILE_PATH = args.data if args.data else os.path.join(os.path.dirname(current_dir), "data", "dev.csv")
+    if not os.path.exists(FILE_PATH):
+        print(f"Error: Data file not found at '{FILE_PATH}'")
+        print("Please specify the correct path using the -d parameter")
+        return
+    
+    DEV_DATA = pd.read_csv(FILE_PATH)
+
+    METEOR_SCORE = start_extraction(MODEL, PROMPT_STYLE, DEV_DATA[0:1], REFINE_ITERATIONS, CROSS_REFINE_MODEL)
+    
+    print(f"\nAverage METEOR Score: {METEOR_SCORE}")
+    
+if __name__ == "__main__":
+    main()

@@ -12,16 +12,20 @@ __pycache__
 *.csv
 /src/data/results/scores.jsonl
 src/data
+.github/instructions
+.cursor
+.deepeval
+api/.deepeval/
 
-# Node.js dependencies (but keep package.json and package-lock.json)
+# Node.js dependencies
 node_modules/
-src/app/node_modules/
+app/node_modules/
 
 # Build outputs
 dist/
 build/
-docs/
-src/app/dist/
+app/dist/
+app/build/
 
 # Environment files
 .env.local
@@ -38,3 +42,54 @@ src/app/dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# DeepEval Cloud
+deepeval-test-dataset/
+api/deepeval-test-dataset/
+api/.deepeval/
+api/test-deepeval-dataset/
+
+# Testing and temporary files
+*.test.*
+test-*.json
+test_*.json
+*.temp
+*.tmp
+coverage/
+.nyc_output/
+
+# Production secrets and configs
+.env.production
+config.local.js
+secrets.json
+
+# Runtime and cache files
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# Editor and system files
+.cursor/
+*.sublime-project
+*.sublime-workspace
+*~
+\#*\#
+.\#*
+
+# Logs and debugging
+logs/
+*.log.*
+debug.log
+error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3

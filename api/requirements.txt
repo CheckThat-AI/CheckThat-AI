@@ -1,0 +1,13 @@
+fastapi[standard]
+uvicorn[standard]
+openai
+together
+anthropic
+google-genai
+pydantic
+supabase
+pyjwt
+numpy
+pandas
+nltk
+deepeval

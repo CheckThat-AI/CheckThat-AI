@@ -1,0 +1,8 @@
+version: '3.8'
+
+# Note: Redis service removed as authentication is now handled by Supabase
+# Add other services here as needed
+
+services: {}
+
+# Volumes section removed as Redis is no longer needed 
