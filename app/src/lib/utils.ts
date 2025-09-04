@@ -5,13 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export interface ExternalLink {
-  url: string;
-  target?: "_blank" | "_self";
-  rel?: "noopener" | "noreferrer";
-}
-
 export interface HyperLink {
-  link: ExternalLink;
-  description: string;
-}
+  link: { url: string,
+          target: string, 
+        },
+  description: string,
+};
