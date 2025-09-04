@@ -23,13 +23,16 @@ security = HTTPBearer()
 
 class SupabaseAuth:
     def __init__(self):
+        # For guest-only deployment, JWT is optional
         if not SUPABASE_URL or not SUPABASE_JWT_SECRET:
-            logger.warning("Supabase configuration not found")
-        
-        # Get JWK Set for JWT verification
-        self.jwks_url = f"{SUPABASE_URL}/auth/v1/jwks"
-        self.jwks = None
-        self._fetch_jwks()
+            logger.info("Supabase configuration not found - running in guest-only mode")
+            self.guest_only_mode = True
+        else:
+            self.guest_only_mode = False
+            # Get JWK Set for JWT verification
+            self.jwks_url = f"{SUPABASE_URL}/auth/v1/jwks"
+            self.jwks = None
+            self._fetch_jwks()
     
     def _fetch_jwks(self):
         """Fetch JSON Web Key Set from Supabase"""
@@ -58,20 +61,22 @@ class SupabaseAuth:
             HTTPException: If token is invalid
         """
         try:
-            # First try with the JWT secret
-            if SUPABASE_JWT_SECRET:
-                payload = jwt.decode(
-                    token,
-                    SUPABASE_JWT_SECRET,
-                    algorithms=["HS256"],
-                    audience="authenticated"
-                )
-                return payload
+            # For guest-only mode, fail gracefully
+            if self.guest_only_mode:
+                logger.warning("JWT verification attempted in guest-only mode")
+                raise HTTPException(status_code=401, detail="Authentication not available in guest mode")
             
-            # If no secret available, try to verify without verification (not recommended for production)
-            logger.warning("JWT verification without secret - not recommended for production")
-            payload = jwt.decode(token, options={"verify_signature": False})
+            # JWT secret is required for full authentication
+            if not SUPABASE_JWT_SECRET:
+                logger.error("SUPABASE_JWT_SECRET is required but not set")
+                raise HTTPException(status_code=500, detail="Authentication service misconfigured")
             
+            payload = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
             return payload
             
         except jwt.ExpiredSignatureError:
