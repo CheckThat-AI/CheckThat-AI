@@ -7,11 +7,7 @@ from fastapi.responses import StreamingResponse
 from starlette.concurrency import iterate_in_threadpool
 
 # Import from the utils folder that's now inside the api folder
-from ..utils.openai import OpenAIModel
-from ..utils.xai import xAIModel
-from ..utils.togetherAI import TogetherModel
-from ..utils.gemini import GeminiModel
-from ..utils.anthropic import AnthropicModel
+from ..utils.LLMRouter import LLMRouter
 from ..utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
 from ..utils.llms import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
 from ..utils.conversation_manager import conversation_manager
@@ -20,19 +16,6 @@ from ..models.requests import ChatRequest
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 VALID_MODELS = OPENAI_MODELS + xAI_MODELS + TOGETHER_MODELS + ANTHROPIC_MODELS + GEMINI_MODELS
-
-def initialize_model(model: str) -> Union[OpenAIModel, GeminiModel, TogetherModel, xAIModel]:
-    """Determine the API provider based on the model"""
-    if model in OPENAI_MODELS:
-        return OpenAIModel(model=model)
-    elif model in xAI_MODELS:
-        return xAIModel(model=model)
-    elif model in TOGETHER_MODELS:
-        return TogetherModel(model=model)
-    elif model in ANTHROPIC_MODELS:
-         return AnthropicModel(model=model)
-    elif model in GEMINI_MODELS:
-        return GeminiModel(model=model)
 
 @router.post("")
 async def chat_interface(request: ChatRequest):
@@ -49,7 +32,14 @@ async def chat_interface(request: ChatRequest):
                 detail=f"Invalid model. Must be one of: {', '.join(VALID_MODELS)}"
             )
 
-        MODEL = initialize_model(request.model)
+        # Add validation for user_query
+        if not request.user_query or not request.user_query.strip():
+            raise HTTPException(
+                status_code=400,
+                detail="User query cannot be empty"
+            )
+
+        client = LLMRouter(request.model).get_api_client()
 
         # Retrieve conversation history if conversation_id is provided
         conversation_history = []
@@ -73,7 +63,7 @@ async def chat_interface(request: ChatRequest):
                 # Build the user prompt with context
                 full_user_prompt = f"{few_shot_CoT_prompt}\n{chat_guide}\n\n{request.user_query}"
                 
-                for chunk in MODEL.generate_streaming_response(
+                for chunk in client.generate_streaming_response(
                     sys_prompt=sys_prompt,
                     user_prompt=full_user_prompt,
                     conversation_history=conversation_history
@@ -92,10 +82,16 @@ async def chat_interface(request: ChatRequest):
                 # Log completion for debugging
                 print(f"Stream completed successfully. Total chunks: {chunk_count}")
                 
+            except ValueError as ve:
+                print(f"Value error in stream_response: {str(ve)}")
+                yield f"\n\n[Error 400: Bad Request - {str(ve)}]"
+            except PermissionError as pe:
+                print(f"Permission error in stream_response: {str(pe)}")
+                yield f"\n\n[Error 403: Forbidden - {str(pe)}]"
             except Exception as e:
                 print(f"Error in stream_response: {str(e)}")
                 # Yield error message if something goes wrong
-                yield f"\n\n[Error: {str(e)}]"
+                yield f"\n\n[Error 500: Internal Server Error - {str(e)}]"
             finally:
                 # Ensure generator properly closes
                 print("Stream generator finished")
@@ -110,6 +106,8 @@ async def chat_interface(request: ChatRequest):
             },
         )
 
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print("Error in chat_interface:", str(e))
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
