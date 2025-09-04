@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 export class ApiService {
-  private baseUrl = 'http://localhost:8000';
+  private baseUrl = import.meta.env.VITE_BACKEND_URL;
 
   private async getAuthHeaders(): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession();
@@ -12,6 +12,12 @@ export class ApiService {
 
     return {
       'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  private async getBasicHeaders(): Promise<Record<string, string>> {
+    return {
       'Content-Type': 'application/json',
     };
   }
@@ -49,6 +55,21 @@ export class ApiService {
     }
 
     return response;
+  }
+
+  async makeUnauthenticatedRequest(
+    endpoint: string, 
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const headers = await this.getBasicHeaders();
+    
+    return fetch(`${this.baseUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        ...headers,
+        ...options.headers,
+      },
+    });
   }
 
   // Google Drive specific methods
@@ -109,6 +130,53 @@ export class ApiService {
       method: 'POST',
       body: JSON.stringify(requestBody),
     });
+  }
+
+  async chat(userQuery: string, model: string, conversationId?: string, conversationHistory?: Array<{role: string, content: string, timestamp?: string}>, isGuest: boolean = false, options?: RequestInit) {
+    const requestBody: {
+      user_query: string;
+      model: string;
+      conversation_id?: string;
+      conversation_history?: Array<{role: string, content: string, timestamp: string}>;
+    } = {
+      user_query: userQuery,
+      model: model,
+    };
+
+    // Add conversation context if available
+    if (conversationId) {
+      requestBody.conversation_id = conversationId;
+    }
+    
+    // Include conversation history as fallback (if no conversationId)
+    if (!conversationId && conversationHistory && conversationHistory.length > 0) {
+      // Convert frontend message format to backend format
+      requestBody.conversation_history = conversationHistory
+        .filter(msg => msg.role !== 'system' && msg.role !== 'welcome') // Exclude system/welcome messages
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp || new Date().toISOString()
+        }));
+    }
+
+    const requestOptions: RequestInit = {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+      ...options,
+      headers: {
+        'Accept': 'text/plain',
+        'Cache-Control': 'no-store',
+        ...options?.headers,
+      },
+    };
+
+    // Use unauthenticated request for guests, authenticated for registered users
+    if (isGuest) {
+      return this.makeUnauthenticatedRequest('/chat', requestOptions);
+    } else {
+      return this.makeAuthenticatedRequest('/chat', requestOptions);
+    }
   }
 }
 
