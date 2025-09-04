@@ -4,7 +4,8 @@ from google.genai import types
 from typing import Generator, Union, Type, Optional, List
 from fastapi import HTTPException
 from json import JSONDecodeError
-from .schema import NormalizedClaim, Feedback
+from ..schemas.claims import NormalizedClaim
+from ..schemas.feedback import Feedback
 from .conversation_manager import conversation_manager
 from ..models.requests import ChatMessage
 
