@@ -10,8 +10,4 @@ pyjwt
 numpy
 pandas
 nltk
-torch
-transformers
-scikit-learn
 deepeval
-tiktoken
