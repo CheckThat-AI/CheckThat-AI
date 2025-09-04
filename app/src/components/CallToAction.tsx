@@ -50,8 +50,8 @@ const CTA = ({ onStartGuestSession }: CTAProps) => {
               Workflow?
             </h2>
             <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto">
-              Join engineering teams using CheckThat.AI to build more reliable, 
-              accurate, and efficient claim normalization applications.
+              Join engineering teams using CheckThat AI to build more reliable, 
+              accurate, and efficient claim normalization pipelines.
             </p>
           </div>
 
@@ -102,14 +102,14 @@ const CTA = ({ onStartGuestSession }: CTAProps) => {
           </div>
 
           {/* Trust Indicators */}
-          <div className="mt-12 pt-8 border-t">
+          {/* <div className="mt-12 pt-8 border-t">
             <p className="text-muted-foreground text-sm mb-4">Trusted by engineering teams at</p>
             <div className="flex justify-center items-center gap-8 opacity-60">
               <div className="text-muted-foreground font-semibold">CLEF 2025</div>
               <div className="text-muted-foreground font-semibold">CheckThat Lab</div>
               <div className="text-muted-foreground font-semibold">Task 2</div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </section>
