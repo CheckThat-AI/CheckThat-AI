@@ -177,7 +177,7 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Menu - Hidden on mobile */}
-        <div className="hidden md:flex">
+        {/* <div className="hidden md:flex">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -237,7 +237,7 @@ export default function Navbar() {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-        </div>
+        </div> */}
 
         {/* Right side actions */}
         <div className="flex items-center gap-3">
