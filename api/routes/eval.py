@@ -424,8 +424,7 @@ async def start_async_deepeval(request: DeepEvalRequest) -> Dict[str, Any]:
         logger.error(f"Error starting async DeepEval evaluation: {str(e)}")
         return {
             "success": False,
-            "message": f"Failed to start DeepEval evaluation: {str(e)}",
-            "error_details": str(e)
+            "message": "Failed to start DeepEval evaluation.",
         }
 
 @router.post("/cache/clear", summary="Clear metric caches")
