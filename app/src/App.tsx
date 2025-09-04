@@ -8,9 +8,9 @@ import { Layout } from './Layout';
 import Hero from '@/components/Hero';
 import CTA from '@/components/CallToAction';
 import Features from '@/components/Features';
-import DocsPage from '@/pages/DocsPage';
+//import DocsPage from '@/pages/DocsPage';
 import BlogPage from '@/pages/BlogPage';
-import ContactPage from '@/pages/ContactPage';
+//import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 import AuthCallback from '@/pages/AuthCallback';
 
@@ -151,7 +151,7 @@ function App() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [user]);
 
   const handleLogout = async () => {
     try {

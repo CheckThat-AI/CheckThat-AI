@@ -1,50 +1,50 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Login } from './Login';
 import { ModeToggle } from './mode-toggle';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
-import { cn } from '@/lib/utils';
+// import {
+//   NavigationMenu,
+//   NavigationMenuItem,
+//   NavigationMenuLink,
+//   NavigationMenuList,
+//   navigationMenuTriggerStyle,
+// } from '@/components/ui/navigation-menu';
+// import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import checkThatLogo from '../assets/Checkthat-logo.svg';
 
-interface NavigationItem {
-  label: string;
-  href: string;
-  external?: boolean;
-  description?: string;
-}
+// interface NavigationItem {
+//   label: string;
+//   href: string;
+//   external?: boolean;
+//   description?: string;
+// }
 
-const navigationItems: NavigationItem[] = [
-  { 
-    label: 'Features', 
-    href: '#features',
-    description: 'Explore our comprehensive platform capabilities'
-  },
-  { 
-    label: 'Documentation', 
-    href: '#docs',
-    description: 'Learn how to use CheckThat.AI effectively'
-  },
-  { 
-    label: 'Blog', 
-    href: '/blog', 
-    external: true,
-    description: 'View source code and contribute'
-  },
-  { 
-    label: 'Contact', 
-    href: '#contact',
-    description: 'Get in touch with our team'
-  },
-];
+// const navigationItems: NavigationItem[] = [
+//   { 
+//     label: 'Features', 
+//     href: '#features',
+//     description: 'Explore our comprehensive platform capabilities'
+//   },
+//   { 
+//     label: 'Documentation', 
+//     href: '#docs',
+//     description: 'Learn how to use CheckThat.AI effectively'
+//   },
+//   { 
+//     label: 'Blog', 
+//     href: '/blog', 
+//     external: true,
+//     description: 'View source code and contribute'
+//   },
+//   { 
+//     label: 'Contact', 
+//     href: '#contact',
+//     description: 'Get in touch with our team'
+//   },
+// ];
 
 export default function Navbar() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -139,26 +139,26 @@ export default function Navbar() {
     }
   };
 
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('#')) {
-      e.preventDefault();
-      const targetElement = document.querySelector(href);
-      if (targetElement) {
-        const offset = -85;
-        const elementPosition = targetElement.getBoundingClientRect().top;
-        const offsetPosition = elementPosition + window.scrollY + offset;
+  // const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+  //   if (href.startsWith('#')) {
+  //     e.preventDefault();
+  //     const targetElement = document.querySelector(href);
+  //     if (targetElement) {
+  //       const offset = -85;
+  //       const elementPosition = targetElement.getBoundingClientRect().top;
+  //       const offsetPosition = elementPosition + window.scrollY + offset;
 
-        window.scrollTo({
-          top: offsetPosition,
-          behavior: "smooth",
-        });
-      }
-    } else if (href.startsWith('/')) {
-      // For internal routes like /docs, allow react-router-dom to handle it
-      return;
-    } 
-    // For external links, do nothing as target="_blank" handles it
-  };
+  //       window.scrollTo({
+  //         top: offsetPosition,
+  //         behavior: "smooth",
+  //       });
+  //     }
+  //   } else if (href.startsWith('/')) {
+  //     // For internal routes like /docs, allow react-router-dom to handle it
+  //     return;
+  //   } 
+  //   // For external links, do nothing as target="_blank" handles it
+  // };
 
 
   return (
@@ -306,31 +306,31 @@ export default function Navbar() {
 }
 
 // ListItem component for NavigationMenuContent
-const ListItem = React.forwardRef<React.ComponentRef<"a">, 
-  React.ComponentPropsWithoutRef<"a"> & {
-    title: string;
-    onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
-  }
->(({ className, title, children, onClick, ...props }, ref) => {
-  return (
-    <li>
-      <NavigationMenuLink asChild>
-        <a
-          ref={ref}
-          className={cn(
-            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-            className
-          )}
-          onClick={onClick}
-          {...props}
-        >
-          <div className="text-sm font-medium leading-none">{title}</div>
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        </a>
-      </NavigationMenuLink>
-    </li>
-  )
-})
-ListItem.displayName = "ListItem";
+// const ListItem = React.forwardRef<React.ComponentRef<"a">, 
+//   React.ComponentPropsWithoutRef<"a"> & {
+//     title: string;
+//     onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+//   }
+// >(({ className, title, children, onClick, ...props }, ref) => {
+//   return (
+//     <li>
+//       {/* <NavigationMenuLink asChild>
+//         <a
+//           ref={ref}
+//           className={cn(
+//             "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+//             className
+//           )}
+//           onClick={onClick}
+//           {...props}
+//         >
+//           <div className="text-sm font-medium leading-none">{title}</div>
+//           <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+//             {children}
+//           </p>
+//         </a>
+//       </NavigationMenuLink> */}
+//     </li>
+//   )
+// })
+// ListItem.displayName = "ListItem";
