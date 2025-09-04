@@ -28,7 +28,7 @@ const DocsPage = () => {
             </span>
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground">
-            Everything you need to get started with CheckThat.AI platform
+            Everything you need to get started with CheckThat AI platform
           </p>
         </div>
 
