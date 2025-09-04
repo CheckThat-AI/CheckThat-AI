@@ -3,6 +3,7 @@ import { flushSync } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Toaster, toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -90,6 +91,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingContent, setEditingContent] = useState<string>('');
   const [conversationBranches, setConversationBranches] = useState<Record<string, { branches: ConversationBranch[], activeIndex: number }>>({});
+  const [hasShownGuestContextWarning, setHasShownGuestContextWarning] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -271,6 +273,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   const sendMessage = async () => {
     if (!message.trim() || !currentConversation || isStreaming) return;
 
+    // Show guest context warning toast if guest user and not shown before
+    if (user.isGuest && !hasShownGuestContextWarning) {
+      toast.error(
+        "We do not yet support memory context for conversations in guest mode. Please try to include as much context as you can in your queries (≤200k tokens).",
+        {
+          duration: 5000, // Show for 8 seconds
+          position: 'bottom-right',
+          style: {
+            background: '#FEF3C7',
+            color: '#92400E',
+            border: '1px solid #F59E0B',
+            borderRadius: '8px',
+            fontSize: '14px',
+            maxWidth: '500px',
+          },
+        }
+      );
+      setHasShownGuestContextWarning(true);
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       content: message.trim(),
@@ -285,7 +307,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     let workingConversation = currentConversation;
     
     if (isFirstUserMessage && isWelcomeConversation) {
-      // Create a new conversation with proper ID
+      // Create a new conversation with proper ID and replace welcome in the list
       workingConversation = {
         ...currentConversation,
         id: Date.now().toString(),
@@ -295,8 +317,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         updatedAt: new Date(),
       };
       
-      // Add to conversations list
-      setConversations(prev => [workingConversation, ...prev]);
+      // Replace the welcome conversation instead of adding a duplicate
+      const previousId = currentConversation.id; // likely 'welcome'
+      setConversations(prev => prev.map(conv => (conv.id === previousId ? workingConversation : conv)));
       setCurrentConversation(workingConversation);
     }
     
@@ -316,7 +339,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     flushSync(() => {
     setCurrentConversation(updatedConversation);
     setConversations(prev => 
-      prev.map(conv => conv.id === currentConversation.id ? updatedConversation : conv)
+        prev.map(conv => (conv.id === workingConversation.id ? updatedConversation : conv))
     );
     });
     
@@ -346,7 +369,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
     flushSync(() => {
     setCurrentConversation(conversationWithStreaming);
     setConversations(prev => 
-      prev.map(conv => conv.id === currentConversation.id ? conversationWithStreaming : conv)
+        prev.map(conv => (conv.id === workingConversation.id ? conversationWithStreaming : conv))
     );
     });
 
@@ -356,20 +379,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         .filter(msg => msg.id !== userMessage.id && msg.id !== 'welcome-msg')
         .slice(0, -1); // Remove the just-added user message since it's sent separately
 
-      const response = await apiService.makeAuthenticatedRequest('/chat', {
-        method: 'POST',
-        headers: {
-          'Accept': 'text/plain',
-        },
-        cache: 'no-store',
-        body: JSON.stringify({
-          user_query: currentMessage,
-          model: selectedModel,
-          conversation_id: currentConversation.id,
-          conversation_history: conversationHistory.length > 0 ? conversationHistory : undefined
-        }),
-        signal: abortController.signal,
-      });
+      const response = await apiService.chat(
+        currentMessage,
+        selectedModel,
+        currentConversation.id,
+        conversationHistory.length > 0 ? conversationHistory.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString()
+        })) : undefined,
+        user.isGuest,
+        { signal: abortController.signal }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -387,7 +407,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
       const rafIdRef = { current: null as number | null };
       const pendingContentRef = { current: '' };
 
-      const currentConvId = currentConversation.id;
+      const currentConvId = workingConversation.id;
 
       const scheduleRafFlush = () => {
         if (rafIdRef.current !== null) return;
@@ -408,9 +428,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
           };
 
           setCurrentConversation(finalConversation);
-          setConversations(prev => prev.map(conv => (
-            conv.id === currentConvId ? finalConversation : conv
-          )));
+          setConversations(prev => prev.map(conv => (conv.id === currentConvId ? finalConversation : conv)));
 
           if (isUserNearBottomRef.current && Date.now() >= suppressAutoScrollUntilRef.current) {
             messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
@@ -479,9 +497,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         // Force synchronous update to ensure immediate re-render
         flushSync(() => {
           setCurrentConversation(completedConversation);
-          setConversations(prev => 
-            prev.map(conv => conv.id === currentConvId ? completedConversation : conv)
-          );
+          setConversations(prev => prev.map(conv => (conv.id === currentConvId ? completedConversation : conv)));
         });
 
         console.log('Completed message isStreaming:', completedMessage.isStreaming);
@@ -506,9 +522,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         // Force synchronous update to ensure immediate re-render
         flushSync(() => {
           setCurrentConversation(abortedConversation);
-          setConversations(prev => 
-            prev.map(conv => conv.id === currentConvId ? abortedConversation : conv)
-          );
+          setConversations(prev => prev.map(conv => (conv.id === currentConvId ? abortedConversation : conv)));
         });
 
         console.log('Aborted message isStreaming:', abortedMessage.isStreaming);
@@ -779,20 +793,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
         .filter(msg => msg.id !== streamingMessage.id && msg.id !== 'welcome-msg')
         .slice(); // Get all previous messages for context
 
-      const response = await apiService.makeAuthenticatedRequest('/chat', {
-        method: 'POST',
-        headers: {
-          'Accept': 'text/plain',
-        },
-        cache: 'no-store',
-        body: JSON.stringify({
-          user_query: userMessage.content,
-          model: selectedModel,
-          conversation_id: currentConversation.id,
-          conversation_history: conversationHistory.length > 0 ? conversationHistory : undefined
-        }),
-        signal: abortController.signal,
-      });
+      const response = await apiService.chat(
+        userMessage.content,
+        selectedModel,
+        currentConversation.id,
+        conversationHistory.length > 0 ? conversationHistory.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString()
+        })) : undefined,
+        user.isGuest,
+        { signal: abortController.signal }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -1456,7 +1467,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                     {/* Assistant message that follows */}
                                     {isAssistantNext && (
                                       <div className="flex gap-4 justify-start group">
-                                        <div className="flex max-w-[80%] justify-start">
+                                        <div className="flex max-w-full justify-start">
                                           <div className="flex flex-col gap-2">
                                             <StreamingMessageWrapper 
                                               isStreaming={nextMessage.isStreaming}
@@ -1600,28 +1611,63 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                   )}
                 </AnimatePresence>
 
-                {/* Modern Chat Input - Theme-aware styling */}
-                <div className="bg-card border border-border rounded-xl shadow-lg p-4">
-                  <div className="flex flex-col rounded-lg p-2 gap-2 bg-transparent">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept=".txt,.pdf,.doc,.docx,.csv,.json"
+                />
+
+                <div className="border border-border/60 bg-muted/40 rounded-2xl px-3 py-3 shadow-sm">
+                  {/* Text input */}
                     <Textarea
                       ref={textareaRef}
-                      className="flex-grow text-foreground resize-none border-0 bg-transparent min-h-[50px] max-h-[200px] focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-y-auto"
-                      placeholder="Type your message here... (Press Enter to send, Shift+Enter for new line)"
+                      className="w-full text-foreground resize-none border-0 min-h-7 max-h-[220px] py-2 bg-transparent dark:bg-transparent focus:border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none placeholder:text-muted-foreground [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] overflow-y-auto"
+                      placeholder="Type or paste your input text here..."
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
                       disabled={isStreaming}
                     />
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-center space-x-2">
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="flex items-center gap-2">
+                    {/* Attachments */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => !user?.isGuest && fileInputRef.current?.click()}
+                            disabled={user?.isGuest}
+                            className={`${
+                              user?.isGuest
+                                ? 'text-muted-foreground cursor-not-allowed opacity-50'
+                                : 'text-slate-300 hover:bg-transparent cursor-pointer'
+                            } rounded-full h-10 w-10 p-0 bg-transparent`}
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TooltipTrigger>
+                      {user?.isGuest && (
+                        <TooltipContent side="top" align="center">
+                          <p>File upload is not available for free models</p>
+                        </TooltipContent>
+                      )}
+                    </Tooltip>
+
+                    {/* Model select (compact) */}
                         <Select value={selectedModel} onValueChange={handleModelChange}>
-                          <SelectTrigger className="w-[280px] bg-background text-slate-300 border-border hover:bg-accent focus:ring-2 focus:ring-ring/20 focus:border-ring transition-all duration-200">
-                            <SelectValue placeholder="Select model" />
+                      <SelectTrigger className="min-w-[220px] h-10 rounded-xl bg-transparent dark:bg-transparent hover:bg-transparent border border-border/60 text-slate-300">
+                        <SelectValue placeholder="Auto" />
                           </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-border max-h-[30vh] overflow-y-auto shadow-lg">
+                      <SelectContent className=" border-border max-h-[30vh] overflow-y-auto shadow-lg">
                             {/* OpenAI Models */}
                             <SelectGroup>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wider">OpenAI</SelectLabel>
+                          <SelectLabel className="font-semibold text-xs text-green-500 uppercase tracking-wider">OpenAI</SelectLabel>
                               {models.filter(m => m.provider === 'OpenAI').map((model) => (
                                 <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
                                   <div className="flex items-center gap-2">
@@ -1630,12 +1676,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                 </SelectItem>
                               ))}
                             </SelectGroup>
-                            
                             <SelectSeparator className="bg-border" />
-                            
                             {/* Anthropic Models */}
                             <SelectGroup>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wider">Anthropic</SelectLabel>
+                          <SelectLabel className="font-semibold text-xs dark:text-claude uppercase tracking-wider">Anthropic</SelectLabel>
                               {models.filter(m => m.provider === 'Anthropic').map((model) => (
                                 <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
                                   <div className="flex items-center gap-2">
@@ -1644,12 +1688,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                 </SelectItem>
                               ))}
                             </SelectGroup>
-                            
                             <SelectSeparator className="bg-border" />
-                            
                             {/* Google Models */}
                             <SelectGroup>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wider">Google AI</SelectLabel>
+                          <SelectLabel className="font-semibold text-xs text-blue-800 uppercase tracking-wider">Google AI</SelectLabel>
                               {models.filter(m => m.provider === 'Google').map((model) => (
                                 <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
                                   <div className="flex items-center gap-2">
@@ -1658,12 +1700,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                 </SelectItem>
                               ))}
                             </SelectGroup>
-                            
                             <SelectSeparator className="bg-border" />
-                            
                             {/* xAI Models */}
                             <SelectGroup>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wider">xAI</SelectLabel>
+                          <SelectLabel className="font-semibold text-xs text-amber-500 uppercase tracking-wider">xAI</SelectLabel>
                               {models.filter(m => m.provider === 'xAI').map((model) => (
                                 <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
                                   <div className="flex items-center gap-2">
@@ -1672,17 +1712,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                 </SelectItem>
                               ))}
                             </SelectGroup>
-                            
                             <SelectSeparator className="bg-border" />
-                            
                             {/* Together AI Models */}
                             <SelectGroup>
-                              <SelectLabel className="font-semibold text-xs uppercase tracking-wider">Together AI (Free)</SelectLabel>
+                          <SelectLabel className="font-semibold text-xs text-cyan-700 uppercase tracking-wider">Together AI (Free)</SelectLabel>
                               {models.filter(m => m.provider === 'Together AI').map((model) => (
                                 <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
                                   <div className="flex items-center gap-2">
                                     <span className="font-medium">{model.label}</span>
-                                    {!model.isPaid && <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-1.5 py-0.5 rounded">FREE</span>}
+                                {!model.isPaid && (
+                                  <span className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-1.5 py-0.5 rounded">FREE</span>
+                                )}
                                   </div>
                                 </SelectItem>
                               ))}
@@ -1690,52 +1730,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                           </SelectContent>
                         </Select>
                         
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          onChange={handleFileUpload}
-                          className="hidden"
-                          accept=".txt,.pdf,.doc,.docx,.csv,.json"
-                        />
-                        
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => !user?.isGuest && fileInputRef.current?.click()}
-                                disabled={user?.isGuest}
-                                className={`bg-background border-border ${
-                                  user?.isGuest 
-                                    ? 'text-muted-foreground cursor-not-allowed opacity-50' 
-                                    : 'text-slate-300 hover:bg-accent cursor-pointer'
-                                }`}
-                              >
-                                <Paperclip className="w-4 h-4 mr-2" />
-                                Upload
-                              </Button>
                             </div>
-                          </TooltipTrigger>
-                          {user?.isGuest && (
-                            <TooltipContent side="top" align="center">
-                              <p>File upload is not available for free models</p>
-                            </TooltipContent>
-                          )}
-                        </Tooltip>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                        >
+
+                    {/* Send / Stop */}
+                    <motion.div className="ml-auto" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                           {isStreaming ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   onClick={stopStreaming}
-                                  className="bg-destructive hover:bg-destructive/90 text-destructive-foreground border-border min-w-[44px] h-[44px]"
+                              className="rounded-xl bg-destructive/20 hover:bg-destructive/30 text-destructive-foreground h-11 w-11 p-0"
                                 >
                                   <Square className="h-4 w-4" />
                                 </Button>
@@ -1750,7 +1754,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                                 <Button
                                   onClick={sendMessage}
                                   disabled={!message.trim() || isStreaming}
-                                  className="bg-primary hover:bg-primary/90 text-primary-foreground border-border min-w-[44px] h-[44px] disabled:opacity-50"
+                              className="rounded-xl bg-muted/40 hover:bg-muted/60 text-foreground h-11 w-11 p-0 disabled:opacity-50"
                                 >
                                   <ArrowUpIcon className="h-4 w-4" />
                                 </Button>
@@ -1761,8 +1765,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                             </Tooltip>
                           )}
                         </motion.div>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1785,6 +1787,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
           </DialogContent>
         </Dialog>
       </div>
+      
+      {/* Toast notifications */}
+      <Toaster />
     </SidebarProvider>
   );
 };
