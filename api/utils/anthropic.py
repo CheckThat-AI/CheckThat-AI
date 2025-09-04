@@ -6,7 +6,8 @@ import anthropic
 from typing import Generator, Union, Type, Optional, List
 from fastapi import HTTPException
 from json import JSONDecodeError
-from .schema import NormalizedClaim, Feedback
+from ..schemas.claims import NormalizedClaim
+from ..schemas.feedback import Feedback
 from .conversation_manager import conversation_manager
 from ..models.requests import ChatMessage
 
@@ -46,10 +47,8 @@ class AnthropicModel:
                 for text in stream.text_stream:
                     yield text
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error during streaming: {str(e)}"
-            )
+            logger.error(f"Anthropic API response error: {str(e)}")
+            raise
 
     def generate_structured_response(self, sys_prompt: str, user_prompt: str, response_format: Type[Union[NormalizedClaim, Feedback]]) -> Union[NormalizedClaim, Feedback]:
         try:
@@ -69,12 +68,8 @@ class AnthropicModel:
             )
             return response
         except JSONDecodeError as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to parse JSON response: {str(e)}"
-            )
+            logger.error(f"JSON decode error: {str(e)}")
+            raise
         except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Error processing response: {str(e)}"
-            )
+            logger.error(f"Error processing response: {str(e)}")
+            raise
