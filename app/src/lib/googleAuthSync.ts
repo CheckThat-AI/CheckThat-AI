@@ -53,7 +53,7 @@ export async function syncGoogleTokensWithBackend(userInfo: UserInfo): Promise<v
       lastName: userInfo.lastName,
       picture: userInfo.picture,
       googleProviderToken: providerToken,
-      googleProviderRefreshToken: providerRefreshToken,
+      googleProviderRefreshToken: providerRefreshToken || undefined,
     };
 
     // Sync with backend
