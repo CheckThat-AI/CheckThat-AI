@@ -20,6 +20,7 @@
   --background: oklch(1.0000 0 0);
   --foreground: oklch(0.1884 0.0128 248.5103);
   --card: oklch(0.9784 0.0011 197.1387);
+  --claude: oklch(67.2 0.131 38.8);
   --card-foreground: oklch(0.1884 0.0128 248.5103);
   --popover: oklch(1.0000 0 0);
   --popover-foreground: oklch(0.1884 0.0128 248.5103);
@@ -161,6 +162,7 @@ button:focus-visible {
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
+  --color-claude: var(--claude);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -201,6 +203,7 @@ button:focus-visible {
   --background: oklch(0 0 0);
   --foreground: oklch(0.9328 0.0025 228.7857);
   --card: oklch(0.2097 0.0080 274.5332);
+  --claude: oklch(67.2% 0.131 38.8);
   --card-foreground: oklch(0.8853 0 0);
   --popover: oklch(0 0 0);
   --popover-foreground: oklch(0.9328 0.0025 228.7857);
