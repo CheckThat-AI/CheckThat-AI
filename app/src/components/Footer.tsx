@@ -13,7 +13,7 @@ const Footer = () => {
               CheckThat<span className="text-primary"> AI</span>
             </div>
             <p className="text-muted-foreground text-sm mb-4">
-              The LLM evaluation and observability platform for claim normalization applications.
+            The LLM powered Claim Normalization Platform for Fact-Checking.
             </p>
             <div className="flex space-x-4">
               <a 
