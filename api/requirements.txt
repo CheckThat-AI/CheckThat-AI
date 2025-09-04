@@ -5,6 +5,7 @@ together
 anthropic
 google-genai
 pydantic
+pydantic-settings
 supabase
 pyjwt
 numpy
