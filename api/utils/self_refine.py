@@ -1,8 +1,9 @@
 import os
 import json
 from typing import Any, Dict, List, Tuple, Optional
-from .schema import Feedback
-from .get_model_response import get_model_response
+from ..schemas.claims import NormalizedClaim
+from ..schemas.feedback import Feedback
+from .LLMRouter import LLMRouter
 from .prompts import sys_prompt, instruction, chain_of_thought_trigger, few_shot_prompt, few_shot_CoT_prompt, feedback_prompt, feedback_sys_prompt, refine_sys_prompt
 
 def format_feedback_for_prompt(feedback: Feedback) -> str:
@@ -69,7 +70,8 @@ def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: i
     refine_user_prompt: str = ""
     refined_claim: str = ""
     
-    initial_claim = get_model_response(model, user_prompt, sys_prompt, "init")
+    client = LLMRouter(model).get_api_client
+    initial_claim = client.generate_structured_response(sys_prompt, user_prompt, NormalizedClaim)
  
     current_claim = initial_claim.claim
     logs.append({"message": f"Initial Claim: {initial_claim.claim}", "type": "initial_claim"})
@@ -82,7 +84,8 @@ def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: i
         # Use cross_refine_model for feedback if provided, otherwise use the main model
         feedback_generation_model = cross_refine_model if cross_refine_model else model
         logs.append({"message": f"Using feedback model: {feedback_generation_model}", "type": "debug_feedback_model"})
-        feedback = get_model_response(feedback_generation_model, feedback_user_prompt, feedback_sys_prompt, "feedback")
+        feedback_client = LLMRouter(feedback_generation_model).get_api_client
+        feedback = feedback_client.generate_structured_response(feedback_sys_prompt, feedback_user_prompt, Feedback)
         
         logs.append({"message": "Feedback: ", "type": "feedback_start"})
         logs.extend([{"message": f"{k}: {v}", "type": "feedback_detail"} for k, v in feedback.model_dump().items()])
@@ -102,7 +105,7 @@ def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: i
             ## Task
             Refine the current response based on the feedback to improve its accuracy, verifiability, and overall quality.
         """
-        refined_claim = get_model_response(model, refine_user_prompt, refine_sys_prompt, "refine")
+        refined_claim = client.generate_structured_response(refine_sys_prompt, refine_user_prompt, NormalizedClaim)
         logs.append({"message": f"Refined Claim: {refined_claim.claim}", "type": "refined_claim"})
         current_claim = refined_claim.claim
         logs.append({"message": f"End of Self-refine Iteration {i+1} of {refine_iters}", "type": "iteration_end"})
