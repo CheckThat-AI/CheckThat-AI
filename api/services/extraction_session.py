@@ -276,7 +276,7 @@ class ExtractionSessionManager:
                 }
         except Exception as e:
             logger.error(f"Failed to get session stats: {str(e)}")
-            return {"error": str(e)}
+            return {"error": "Failed to retrieve session statistics"}
 
 # Global session manager instance
 extraction_session_manager = ExtractionSessionManager() 
