@@ -200,9 +200,9 @@ function App() {
               <Layout title="CheckThat AI - Fact Checking Made Easy">
                 <Hero onStartGuestSession={createGuestSession} />
                 <CTA onStartGuestSession={createGuestSession} />
-                <Features />
+                {/* <Features />
                 <DocsPage />
-                <ContactPage />
+                <ContactPage /> */}
               </Layout>
             } 
           />
