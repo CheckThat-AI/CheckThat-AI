@@ -13,7 +13,7 @@ import { ModeToggle } from './mode-toggle';
 // } from '@/components/ui/navigation-menu';
 // import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
-import checkThatLogo from '../assets/Checkthat-logo.svg';
+import checkThatLogo from '../assets/checkthat-logo.svg';
 
 // interface NavigationItem {
 //   label: string;
