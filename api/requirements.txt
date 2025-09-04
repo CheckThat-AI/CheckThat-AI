@@ -7,6 +7,7 @@ openai
 together
 anthropic
 google-genai
+instructor
 
 # Data validation and settings
 pydantic
