@@ -21,6 +21,7 @@ Example Usage:
 import logging
 import re
 import os
+BASE_DATASET_DIR = os.path.abspath("./deepeval-test-dataset")
 import time
 import pandas as pd
 from typing import List, Optional, Dict, Any, Union, Literal
@@ -118,15 +119,20 @@ class DeepEvalManager:
             True if save was successful, False otherwise
         """
         try:
+            # Validate and normalize directory
+            normalized_dir = os.path.abspath(os.path.normpath(directory))
+            if not normalized_dir.startswith(BASE_DATASET_DIR):
+                logger.error(f"Attempted to save dataset to unauthorized directory: {directory}")
+                return False
             # Ensure directory exists
-            os.makedirs(directory, exist_ok=True)
+            os.makedirs(normalized_dir, exist_ok=True)
             
             dataset.save_as(
                 file_type="csv",
-                directory=directory,
+                directory=normalized_dir,
                 include_test_cases=True
             )
-            logger.info(f"Successfully saved dataset locally to: {directory}")
+            logger.info(f"Successfully saved dataset locally to: {normalized_dir}")
             return True
         except Exception as e:
             logger.error(f"Error saving dataset locally: {str(e)}")
