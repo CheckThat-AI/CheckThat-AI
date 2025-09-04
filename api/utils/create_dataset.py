@@ -970,10 +970,17 @@ class DatasetBuilder:
         # Read the actual extraction results CSV file to get the new column structure
         import os
         import pandas as pd
+        import re
+        
+        # Validate session_id to prevent path traversal
+        if not re.match(r"^[a-zA-Z0-9_\-]+$", str(self.session_id)):
+            logger.error(f"Invalid session_id '{self.session_id}' (possible path traversal attempt)")
+            return []
         
         # Get the results directory path
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        results_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), "data", "results")
+        results_root = os.path.normpath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), "data"))
+        results_dir = os.path.join(results_root, "results")
         
         try:
             df = None
@@ -982,12 +989,17 @@ class DatasetBuilder:
             # Try session-specific files first (most reliable approach)
             session_specific_paths = [
                 # Session-specific combined results file
-                os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))), "data", f"inference_results_{self.session_id}.csv"),
+                os.path.join(results_root, f"inference_results_{self.session_id}.csv"),
                 # Session-specific results directory file
                 os.path.join(results_dir, f"inference_results_{self.session_id}.csv"),
             ]
             
-            for path in session_specific_paths:
+            for raw_path in session_specific_paths:
+                # Normalize and check for traversal
+                path = os.path.normpath(raw_path)
+                if not path.startswith(results_root):
+                    logger.error(f"Refusing to use suspicious CSV path outside results root: {path}")
+                    continue
                 if os.path.exists(path):
                     df = pd.read_csv(path)
                     source_file = path
