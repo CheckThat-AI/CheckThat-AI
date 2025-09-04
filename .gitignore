@@ -15,18 +15,17 @@ src/data
 .github/instructions
 .cursor
 .deepeval
+api/.deepeval/
 
-# Node.js dependencies (but keep package.json and package-lock.json)
+# Node.js dependencies
 node_modules/
-src/app/node_modules/
-package.json
-package-lock.json
+app/node_modules/
 
 # Build outputs
 dist/
 build/
-docs/
-src/app/dist/
+app/dist/
+app/build/
 
 # Environment files
 .env.local
@@ -46,6 +45,51 @@ Thumbs.db
 
 # DeepEval Cloud
 deepeval-test-dataset/
-src/api/deepeval-test-dataset/
-src/api/.deepeval/
-src/api/test-deepeval-dataset/
+api/deepeval-test-dataset/
+api/.deepeval/
+api/test-deepeval-dataset/
+
+# Testing and temporary files
+*.test.*
+test-*.json
+test_*.json
+*.temp
+*.tmp
+coverage/
+.nyc_output/
+
+# Production secrets and configs
+.env.production
+config.local.js
+secrets.json
+
+# Runtime and cache files
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.output/
+.vercel/
+.netlify/
+
+# Editor and system files
+.cursor/
+*.sublime-project
+*.sublime-workspace
+*~
+\#*\#
+.\#*
+
+# Logs and debugging
+logs/
+*.log.*
+debug.log
+error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
