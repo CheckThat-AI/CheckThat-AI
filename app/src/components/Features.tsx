@@ -5,27 +5,28 @@ import {
   BarChart3, 
   Shield, 
   Zap, 
-  Globe, 
   Database,
   MessageSquare,
   FileText,
   Settings,
-  Clock
+  Clock,
 } from 'lucide-react';
+import { FaPython } from "react-icons/fa";
 
 const Features = () => {
   const features = [
     {
       icon: Brain,
       title: "Multi-Model AI Integration",
-      description: "Support for OpenAI GPT-4, Claude, Gemini, and other SOTA LLMs with seamless model switching",
+      description: "Support for OpenAI GPT-5, Claude Sonnet 4, Gemini 2.5 Pro, Grok4 and other State-of-the-Art reasoning LLMs with seamless model switching",
       badge: "AI Powered",
       color: "text-purple-400"
     },
     {
       icon: BarChart3,
       title: "Advanced Evaluation Metrics",
-      description: "Comprehensive metrics including BLEU, ROUGE, BERTScore, faithfulness, and hallucination detection",
+      description: "Comprehensive metrics like Answer Relevancy, Completeness, Faithfulness, Hallucination and Rubric based eval metrics like G-Eval & custom metrics powered by ",
+      url: 'https://deepeval.com',
       badge: "Analytics",
       color: "text-blue-400"
     },
@@ -46,15 +47,15 @@ const Features = () => {
     {
       icon: Database,
       title: "Secure Data Management",
-      description: "Google Drive integration with encrypted API key storage and user data protection",
+      description: "Google Drive integration with encrypted API key storage and GDPR compliant user data privacy protection",
       badge: "Security",
       color: "text-red-400"
     },
     {
-      icon: Globe,
-      title: "CLEF 2025 Compliant",
-      description: "Built specifically for CheckThat Lab Task 2 with standardized evaluation protocols",
-      badge: "Standards",
+      icon: FaPython,
+      title: "Python SDK",
+      description: "Built with standardized REST API endpoints for claim normalization, evaluation metrics, and fact-cheking",
+      badge: "API SDK",
       color: "text-indigo-400"
     }
   ];
@@ -118,6 +119,9 @@ const Features = () => {
               <CardContent>
                 <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
+                  {feature.url && ( 
+                    <a href={feature.url} target='_blank' rel='noopener noreferrer'>DeepEval</a> 
+                  )}
                 </p>
               </CardContent>
             </Card>
@@ -149,16 +153,19 @@ const Features = () => {
           </h3>
           <div className="flex flex-wrap justify-center items-center gap-8 opacity-70">
             <div className="bg-card/50 px-6 py-3 rounded-lg border">
-              <span className="text-card-foreground font-medium">OpenAI GPT-4</span>
+              <span className="text-card-foreground font-medium">OpenAI GPT-5</span>
             </div>
             <div className="bg-card/50 px-6 py-3 rounded-lg border">
-              <span className="text-card-foreground font-medium">Claude 3</span>
+              <span className="text-card-foreground font-medium">Claude Sonnet 4</span>
             </div>
             <div className="bg-card/50 px-6 py-3 rounded-lg border">
-              <span className="text-card-foreground font-medium">Google Gemini</span>
+              <span className="text-card-foreground font-medium">Gemini 2.5 Pro</span>
             </div>
             <div className="bg-card/50 px-6 py-3 rounded-lg border">
-              <span className="text-card-foreground font-medium">Supabase</span>
+              <span className="text-card-foreground font-medium">Grok 4</span>
+            </div>
+            <div className="bg-card/50 px-6 py-3 rounded-lg border">
+              <span className="text-card-foreground font-medium">Supabase + Google OAuth</span>
             </div>
             <div className="bg-card/50 px-6 py-3 rounded-lg border">
               <span className="text-card-foreground font-medium">Google Drive</span>
