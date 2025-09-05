@@ -53,7 +53,7 @@ const Features = () => {
     },
     {
       icon: FaPython,
-      title: "Python SDK",
+      title: "Python SDK Coming Soon...",
       description: "Built with standardized REST API endpoints for claim normalization, evaluation metrics, and fact-cheking",
       badge: "API SDK",
       color: "text-indigo-400"
