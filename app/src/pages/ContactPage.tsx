@@ -9,7 +9,7 @@ import { Mail, MessageSquare, CheckCircle, Send } from 'lucide-react';
 import emailjs from '@emailjs/browser';
 import { Toaster, toast } from 'react-hot-toast';
 import discordLogo from "../assets/discord-logo.svg";
-import linkedinLogo from "../assets/linkedin-logo.svg";
+// import linkedinLogo from "../assets/linkedin-logo.svg";
 import slackLogo from "../assets/slack-logo.svg";
 
 const ContactPage = () => {
@@ -25,7 +25,7 @@ const ContactPage = () => {
   });
 
   const validate = () => {
-    let validationErrors: {[key: string]: string} = {};
+    const validationErrors: {[key: string]: string} = {};
     if (!formData.name.trim()) validationErrors.name = "Name is required";
     if (!formData.email.trim()) {
       validationErrors.email = "Email is required";
@@ -61,7 +61,7 @@ const ContactPage = () => {
           message: formData.message,
           newsletter: formData.newsletter ? "Yes" : "No",
           reply_to: formData.email,
-          to_email: "nikhil.kadapala@checkthat-ai.com", // Your email address
+          to_email: "support@checkthat-ai.com", // Your email address
         },
         "3Q0HSwhn1mJZ0w6O6" // EmailJS User ID
       );
@@ -151,15 +151,15 @@ const ContactPage = () => {
                             onClick={() => window.open('mailto:nikhil.kadapala@checkthat-ai.com')}
                         >
                             <Mail className="w-4 h-4 mr-2" />
-                            nikhil.kadapala@checkthat-ai.com
+                            support@checkthat-ai.com
                         </Button>
                         <div className="flex items-center mt-8">
-                            <a href="https://discord.com" target="_blank" rel="noopener noreferrer">
+                            <a href="https://discord.gg/3wWspbaS" target="_blank" rel="noopener noreferrer">
                                 <img src={discordLogo} className="w-10 h-10 mx-2 cursor-pointer" alt="Discord Logo" />
                             </a>
-                            <a href="https://linkedin.com/in/nikhil-kadapala" target="_blank" rel="noopener noreferrer">
+                            {/* <a href="https://linkedin.com/in/nikhil-kadapala" target="_blank" rel="noopener noreferrer">
                                 <img src={linkedinLogo} className="w-10 h-10 mx-2 cursor-pointer" alt="LinkedIn Logo" />
-                            </a>
+                            </a> */}
                             <a href="https://join.slack.com/t/checkthatai/shared_invite/zt-3a76srzs3-6Aku535esqBCyNeXUWNdAg" target="_blank" rel="noopener noreferrer">
                                 <img src={slackLogo} className="w-10 h-10 mx-2 cursor-pointer" alt="Slack Logo" />
                             </a>

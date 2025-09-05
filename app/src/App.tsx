@@ -9,8 +9,8 @@ import Hero from '@/components/Hero';
 import CTA from '@/components/CallToAction';
 import Features from '@/components/Features';
 //import DocsPage from '@/pages/DocsPage';
-import BlogPage from '@/pages/BlogPage';
-//import ContactPage from '@/pages/ContactPage';
+//import BlogPage from '@/pages/BlogPage';
+import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 import AuthCallback from '@/pages/AuthCallback';
 
@@ -200,9 +200,9 @@ function App() {
               <Layout title="CheckThat AI - Fact Checking Made Easy">
                 <Hero onStartGuestSession={createGuestSession} />
                 <CTA onStartGuestSession={createGuestSession} />
-                {/* <Features />
-                <DocsPage />
-                <ContactPage /> */}
+                <Features />
+                {/*<DocsPage />*/}
+                <ContactPage />
               </Layout>
             } 
           />
@@ -228,11 +228,11 @@ function App() {
           } /> */}
 
           {/* Blog Page Route */}
-          <Route path="/blog" element={
+          {/* <Route path="/blog" element={
             <Layout title="Blog - CheckThat AI">
               <BlogPage />
             </Layout>
-          } />
+          } /> */}
 
           {/* Features Page Route */}
           <Route 
