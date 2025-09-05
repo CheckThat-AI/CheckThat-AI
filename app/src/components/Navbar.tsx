@@ -4,47 +4,47 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { Login } from './Login';
 import { ModeToggle } from './mode-toggle';
-// import {
-//   NavigationMenu,
-//   NavigationMenuItem,
-//   NavigationMenuLink,
-//   NavigationMenuList,
-//   navigationMenuTriggerStyle,
-// } from '@/components/ui/navigation-menu';
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from '@/components/ui/navigation-menu';
 // import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import checkThatLogo from '../assets/checkthat-logo.svg';
 
-// interface NavigationItem {
-//   label: string;
-//   href: string;
-//   external?: boolean;
-//   description?: string;
-// }
+interface NavigationItem {
+  label: string;
+  href: string;
+  external?: boolean;
+  description?: string;
+}
 
-// const navigationItems: NavigationItem[] = [
-//   { 
-//     label: 'Features', 
-//     href: '#features',
-//     description: 'Explore our comprehensive platform capabilities'
-//   },
-//   { 
-//     label: 'Documentation', 
-//     href: '#docs',
-//     description: 'Learn how to use CheckThat.AI effectively'
-//   },
-//   { 
-//     label: 'Blog', 
-//     href: '/blog', 
-//     external: true,
-//     description: 'View source code and contribute'
-//   },
-//   { 
-//     label: 'Contact', 
-//     href: '#contact',
-//     description: 'Get in touch with our team'
-//   },
-// ];
+const navigationItems: NavigationItem[] = [
+  { 
+    label: 'Features', 
+    href: '#features',
+    description: 'Explore our comprehensive platform capabilities'
+  },
+  { 
+    label: 'Documentation', 
+    href: '#docs',
+    description: 'Learn how to use CheckThat.AI effectively'
+  },
+  { 
+    label: 'Blog', 
+    href: '/blog', 
+    external: true,
+    description: 'View source code and contribute'
+  },
+  { 
+    label: 'Contact', 
+    href: '#contact',
+    description: 'Get in touch with our team'
+  },
+];
 
 export default function Navbar() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
@@ -139,26 +139,26 @@ export default function Navbar() {
     }
   };
 
-  // const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-  //   if (href.startsWith('#')) {
-  //     e.preventDefault();
-  //     const targetElement = document.querySelector(href);
-  //     if (targetElement) {
-  //       const offset = -85;
-  //       const elementPosition = targetElement.getBoundingClientRect().top;
-  //       const offsetPosition = elementPosition + window.scrollY + offset;
+  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith('#')) {
+      e.preventDefault();
+      const targetElement = document.querySelector(href);
+      if (targetElement) {
+        const offset = -85;
+        const elementPosition = targetElement.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.scrollY + offset;
 
-  //       window.scrollTo({
-  //         top: offsetPosition,
-  //         behavior: "smooth",
-  //       });
-  //     }
-  //   } else if (href.startsWith('/')) {
-  //     // For internal routes like /docs, allow react-router-dom to handle it
-  //     return;
-  //   } 
-  //   // For external links, do nothing as target="_blank" handles it
-  // };
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth",
+        });
+      }
+    } else if (href.startsWith('/')) {
+      // For internal routes like /docs, allow react-router-dom to handle it
+      return;
+    } 
+    // For external links, do nothing as target="_blank" handles it
+  };
 
 
   return (
@@ -177,7 +177,7 @@ export default function Navbar() {
         </div>
 
         {/* Navigation Menu - Hidden on mobile */}
-        {/* <div className="hidden md:flex">
+        <div className="hidden md:flex">
           <NavigationMenu>
             <NavigationMenuList>
               <NavigationMenuItem>
@@ -194,7 +194,7 @@ export default function Navbar() {
                 </NavigationMenuLink>
               </NavigationMenuItem>
               
-              <NavigationMenuItem>
+              {/* <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
@@ -206,9 +206,9 @@ export default function Navbar() {
                     {navigationItems[1].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem>
+              </NavigationMenuItem> */}
               
-              <NavigationMenuItem>
+              {/* <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
@@ -220,7 +220,7 @@ export default function Navbar() {
                     {navigationItems[2].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem>
+              </NavigationMenuItem> */}
               
               <NavigationMenuItem>
                 <NavigationMenuLink 
@@ -237,7 +237,7 @@ export default function Navbar() {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
-        </div> */}
+        </div>
 
         {/* Right side actions */}
         <div className="flex items-center gap-3">
