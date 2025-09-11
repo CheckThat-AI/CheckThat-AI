@@ -9,7 +9,7 @@ async def root():
     """
     Root endpoint that returns the API health status
     """
-    return RootResponse(message="This is the CheckThat AI backend root API endpoint. Visit https://www.github.com/nikhil-kadapala/checkthat-ai for the public API documentation.", version=settings.version)
+    return RootResponse(message="This is the CheckThat AI backend root API endpoint. Visit https://github.com/nikhil-kadapala/checkthat-ai for the public API documentation.", version=settings.version)
 
 @router.get("/health", response_model=HealthCheck)
 async def health_check():
