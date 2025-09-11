@@ -79,6 +79,8 @@ secrets.json
 *~
 \#*\#
 .\#*
+GEMINI.md
+prompt.md
 
 # Logs and debugging
 logs/
