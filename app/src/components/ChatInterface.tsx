@@ -1219,7 +1219,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                       </DropdownMenuLabel>
                     )}
                     
-                    {!user.isGuest}
+                    {!user.isGuest && <DropdownMenuSeparator />}
                     
                     {/* Settings - Hidden for guests */}
                     {!user.isGuest && (
