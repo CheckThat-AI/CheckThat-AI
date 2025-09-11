@@ -17,10 +17,10 @@ class AnthropicModel:
     """
     This class is used to generate responses from the Anthropic API.
     """
-    def __init__(self, model: str, api_key: Optional[str] = None):
+    def __init__(self, model: str, api_key: str = None):
         self.model = model
         try:
-            self.api_key = api_key if not None else os.getenv("ANTHROPIC_API_KEY")
+            self.api_key = api_key
             self.client = anthropic.Anthropic(api_key=self.api_key)
         except Exception as e:
             logger.error(f"Anthropic Client creation error: {str(e)}")
