@@ -18,11 +18,11 @@ class GeminiModel:
     This class is used to generate responses from the Gemini API.
     """
     def __init__(self, model: str, api_key: str = None):
-        self.model = model
         try:
             if not api_key:
                 raise ValueError("Gemini API key is required but not provided")
             
+            self.model = model
             self.api_key = api_key
             logger.info(f"Initializing Gemini client for model: {model}")
             # Avoid logging API key length to prevent leaking sensitive information
