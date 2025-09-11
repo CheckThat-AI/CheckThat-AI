@@ -1165,7 +1165,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                     <SidebarMenuButton
                       size="lg"
                       tooltip={`${user.firstName} ${user.lastName}`}
-                      className="group hoverable gap-2 !bg-black hover:!bg-card !border-0 hover:!border-0 data-[state=open]:hover:!border-0 data-[state=open]:!bg-card data-[state=open]:!text-sidebar-accent-foreground no-focus-ring"
+                      className="group hoverable gap-2 bg-black hover:bg-card border-0 hover:border-0 data-[state=open]:hover:border-0 data-[state=open]:bg-card data-[state=open]:text-sidebar-accent-foreground no-focus-ring"
                       style={{
                         backgroundColor: 'black',
                         outline: 'none',
@@ -1219,7 +1219,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                       </DropdownMenuLabel>
                     )}
                     
-                    {!user.isGuest}
+                    {!user.isGuest && <DropdownMenuSeparator />}
                     
                     {/* Settings - Hidden for guests */}
                     {!user.isGuest && (
