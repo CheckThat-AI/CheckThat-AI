@@ -16,10 +16,10 @@ class xAIModel:
     This class is used to generate responses from the xAI API.
     """
     
-    def __init__(self, model: str, api_key: Optional[str] = None):
+    def __init__(self, model: str, api_key: str = None):
         self.model = model
         try:
-            self.api_key = api_key if api_key is not None else os.getenv("XAI_API_KEY")
+            self.api_key = api_key
             self.client = OpenAI(api_key=self.api_key, base_url="https://api.x.ai/v1")
         except Exception as e:
             logger.error(f"xAI Client creation error: {str(e)}")
