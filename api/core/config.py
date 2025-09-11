@@ -11,26 +11,29 @@ class Settings(BaseSettings):
     # Environment
     env_type: str = os.getenv("ENV_TYPE", "dev")
     
-    # CORS Origins
+    # CORS Origins - Configure for public API access
+    # Set CORS_ORIGINS="*" for public API or specific domains for restricted access
     cors_origins: str = os.getenv("CORS_ORIGINS", "")
     
     @property
     def allowed_origins(self) -> List[str]:
         if self.cors_origins:
             # Split by comma and strip whitespace
-            return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+            origins = [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+            # Allow wildcard for public API if explicitly set
+            if "*" in origins:
+                return ["*"]
+            return origins
         
         # Fallback defaults if no env var is set
         if self.env_type == "dev":
             return ["http://localhost:5173", "http://127.0.0.1:5173"]
-        return ["https://nikhil-kadapala.github.io"]
-    
-    # API Keys (optional defaults)
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    anthropic_api_key: str = os.getenv("ANTHROPIC_API_KEY", "")
-    gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    grok_api_key: str = os.getenv("GROK_API_KEY", "")
-    together_api_key: str = os.getenv("TOGETHER_API_KEY", "")
+        elif self.env_type == "prod":
+            # For production public API, allow all origins
+            return ["*"]
+        else:
+            # Default to specific origins for security
+            return ["https://nikhil-kadapala.github.io", "https://www.checkthat-ai.com", "https://checkthat-ai.com/"]
     
     class Config:
         env_file = ".env"
