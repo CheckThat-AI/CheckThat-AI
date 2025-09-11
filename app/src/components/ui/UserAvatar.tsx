@@ -34,7 +34,7 @@ export function UserAvatar({
         />
       ) : null}
       <AvatarFallback 
-        className={`${user.isGuest ? 'bg-muted text-muted-foreground' : bgColorClass} text-white font-semibold text-sm flex items-center justify-center ${fallbackClassName || 'rounded-full'}`}
+        className={`${user.isGuest ? 'bg-muted text-muted-foreground' : `${bgColorClass} text-white`} font-semibold text-sm flex items-center justify-center ${fallbackClassName || 'rounded-full'}`}
       >
         {user.isGuest && showGuestIcon ? <User className="h-4 w-4" /> : initials}
       </AvatarFallback>
