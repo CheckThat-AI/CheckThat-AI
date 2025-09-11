@@ -6,11 +6,11 @@ import { ThemeProvider } from '@/components/theme-provider';
 // Landing Page Components
 import { Layout } from './Layout';
 import Hero from '@/components/Hero';
-import CTA from '@/components/CallToAction';
-import Features from '@/components/Features';
-//import DocsPage from '@/pages/DocsPage';
-//import BlogPage from '@/pages/BlogPage';
-import ContactPage from '@/pages/ContactPage';
+// import CTA from '@/components/CallToAction';
+// import Features from '@/components/Features';
+// import DocsPage from '@/pages/DocsPage';
+// import BlogPage from '@/pages/BlogPage';
+// import ContactPage from '@/pages/ContactPage';
 import NotFound from '@/pages/NotFound';
 import AuthCallback from '@/pages/AuthCallback';
 
@@ -202,10 +202,10 @@ function App() {
             element={
               <Layout title="CheckThat AI - Fact Checking Made Easy">
                 <Hero onStartGuestSession={createGuestSession} />
-                <CTA onStartGuestSession={createGuestSession} />
+                {/* <CTA onStartGuestSession={createGuestSession} />
                 <Features />
-                {/*<DocsPage />*/}
-                <ContactPage />
+                <DocsPage />
+                <ContactPage />*/}
               </Layout>
             } 
           />
@@ -238,14 +238,14 @@ function App() {
           } /> */}
 
           {/* Features Page Route */}
-          <Route 
+          {/* <Route 
             path="/features" 
             element={
               <Layout title="Features - CheckThat AI">
                 <Features />
               </Layout>
             } 
-          />
+          /> */}
 
           {/* Protected Route - Chat Interface */}
           <Route 
