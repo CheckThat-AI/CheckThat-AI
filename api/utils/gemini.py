@@ -25,7 +25,8 @@ class GeminiModel:
             
             self.api_key = api_key
             logger.info(f"Initializing Gemini client for model: {model}")
-            logger.debug(f"API key present: {bool(api_key)}, length: {len(api_key) if api_key else 0}")
+            # Avoid logging API key length to prevent leaking sensitive information
+            logger.debug(f"API key present: {bool(api_key)}")
             
             self.client = genai.Client(api_key=self.api_key)
         except Exception as e:
