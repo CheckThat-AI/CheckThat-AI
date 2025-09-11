@@ -39,9 +39,11 @@ async def chat_interface(request: ChatRequest):
                 detail="User query cannot be empty"
             )
         if request.model in TOGETHER_MODELS:
-            api_key = os.getenv("TOGETHER_API_KEY")  
+            api_key = os.getenv("TOGETHER_API_KEY")
         elif request.model in GEMINI_MODELS:
-            api_key = os.getenv("GEMINI_API_KEY")  
+            api_key = os.getenv("GEMINI_API_KEY")
+        else:
+            api_key = request.api_key
             
         client = LLMRouter(model=request.model, api_key=api_key).get_api_client()
 
@@ -95,7 +97,7 @@ async def chat_interface(request: ChatRequest):
             except Exception as e:
                 print(f"Error in stream_response: {str(e)}")
                 # Yield error message if something goes wrong
-                yield f"\n\n[Error 500: Internal Server Error - {str(e)}]"
+                yield f"\n\n[{str(e)}]"
             finally:
                 # Ensure generator properly closes
                 print("Stream generator finished")
