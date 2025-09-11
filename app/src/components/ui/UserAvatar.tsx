@@ -25,22 +25,19 @@ export function UserAvatar({
 
   return (
     <Avatar className={className}>
-      {/* For authenticated users, don't show the picture anymore, just use initials */}
-      {!user.isGuest ? (
-        <AvatarFallback 
-          className={`${bgColorClass} text-white font-semibold text-sm flex items-center justify-center ${fallbackClassName || 'rounded-full'}`}
-        >
-          {initials}
-        </AvatarFallback>
-      ) : (
-        <>
-          {/* Guest users can still have picture fallback */}
-          <AvatarImage src={user.picture} alt={user.firstName || 'User'} />
-          <AvatarFallback className={`${fallbackClassName} bg-muted text-muted-foreground`}>
-            {showGuestIcon ? <User className="h-4 w-4" /> : initials}
-          </AvatarFallback>
-        </>
-      )}
+      {/* Show profile image if available for both guest and authenticated users */}
+      {user.picture ? (
+        <AvatarImage 
+          src={user.picture} 
+          alt={user.firstName || 'User'} 
+          className="object-cover"
+        />
+      ) : null}
+      <AvatarFallback 
+        className={`${user.isGuest ? 'bg-muted text-muted-foreground' : `${bgColorClass} text-white`} font-semibold text-sm flex items-center justify-center ${fallbackClassName || 'rounded-full'}`}
+      >
+        {user.isGuest && showGuestIcon ? <User className="h-4 w-4" /> : initials}
+      </AvatarFallback>
     </Avatar>
   );
 }

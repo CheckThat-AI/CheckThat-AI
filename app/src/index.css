@@ -264,3 +264,23 @@ button:focus-visible {
     letter-spacing: var(--tracking-normal);
   }
 }
+
+@layer components {
+  .no-focus-ring {
+    outline: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+  }
+  
+  .no-focus-ring:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+  }
+  
+  .no-focus-ring:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    ring: none !important;
+  }
+}
