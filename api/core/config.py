@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     # API Configuration
     title: str = "CheckThat AI - Advanced Claim Normalization & Fact-Checking Platform"
-    description: str = "API for the CheckThat AI Platform"
+    description: str = "API for the CheckThat AI Platform - https://www.checkthat-ai.com"
     version: str = "1.0.0"
     
     # Environment
