@@ -79,7 +79,7 @@ const ChatFeedbackPopup: React.FC<ChatFeedbackPopupProps> = ({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.3 }}
             >
-              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-amber-400">
+              <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 How's CheckThat AI treating you?
               </DialogTitle>
             </motion.div>
