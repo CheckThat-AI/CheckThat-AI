@@ -59,6 +59,7 @@ import { supabase } from '@/lib/supabase';
 import { apiService } from '@/lib/apiService';
 import { StreamingMessageWrapper, BlinkingCursor } from './ui/streaming-indicators';
 import checkThatLogo from '../assets/checkthat-logo.svg';
+import ChatFeedbackPopup from './ChatFeedbackPopup';
 
 interface UserInfo {
   id: string;
@@ -92,12 +93,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   const [editingContent, setEditingContent] = useState<string>('');
   const [conversationBranches, setConversationBranches] = useState<Record<string, { branches: ConversationBranch[], activeIndex: number }>>({});
   const [hasShownGuestContextWarning, setHasShownGuestContextWarning] = useState(false);
+  const [showFeedbackPopup, setShowFeedbackPopup] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [isUserNearBottom, setIsUserNearBottom] = useState(true);
   const isUserNearBottomRef = useRef<boolean>(true);
   const suppressAutoScrollUntilRef = useRef<number>(0);
+  const feedbackIntervalRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     isUserNearBottomRef.current = isUserNearBottom;
   }, [isUserNearBottom]);
@@ -110,6 +113,47 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   useEffect(() => {
     document.title = currentConversation?.title ? `${currentConversation.title} - CheckThat AI` : 'CheckThat AI';
   }, [currentConversation]);
+
+  // Feedback popup timer - shows every 60 seconds
+  useEffect(() => {
+    const startFeedbackTimer = () => {
+      // Clear any existing interval
+      if (feedbackIntervalRef.current) {
+        clearInterval(feedbackIntervalRef.current);
+      }
+      
+      // Start new interval
+      feedbackIntervalRef.current = setInterval(() => {
+        setShowFeedbackPopup(true);
+      }, 60000);
+    };
+
+    // Start the timer immediately
+    startFeedbackTimer();
+
+    return () => {
+      if (feedbackIntervalRef.current) {
+        clearInterval(feedbackIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Restart timer when popup is closed
+  useEffect(() => {
+    if (!showFeedbackPopup) {
+      // Restart the timer after a short delay when popup is closed
+      const timer = setTimeout(() => {
+        if (feedbackIntervalRef.current) {
+          clearInterval(feedbackIntervalRef.current);
+        }
+        feedbackIntervalRef.current = setInterval(() => {
+          setShowFeedbackPopup(true);
+        }, 60000);
+      }, 1000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [showFeedbackPopup]);
 
   const models = [
     { value: 'gpt-4o-2024-11-20', label: 'GPT-4o', provider: 'OpenAI', isPaid: true },
@@ -1113,7 +1157,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
             </SidebarGroup>
           </SidebarContent>
 
-          <SidebarFooter>
+          <SidebarFooter className='border-t border-sidebar-border bg-background sticky bottom-0 z-30 py-1.5 group-data-scrolled-from-end/scrollport:shadow-(--sharp-edge-bottom-shadow) empty:hidden'>
             <SidebarMenu>
               <SidebarMenuItem>
                 <DropdownMenu>
@@ -1121,25 +1165,33 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                     <SidebarMenuButton
                       size="lg"
                       tooltip={`${user.firstName} ${user.lastName}`}
-                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                      className="group hoverable gap-2 !bg-black hover:!bg-card !border-0 hover:!border-0 data-[state=open]:hover:!border-0 data-[state=open]:!bg-card data-[state=open]:!text-sidebar-accent-foreground no-focus-ring"
+                      style={{
+                        backgroundColor: 'black',
+                        outline: 'none',
+                        boxShadow: 'none',
+                      } as React.CSSProperties}
                     >
-                      <UserAvatar 
-                        user={user} 
-                        className="h-8 w-8 rounded-full"
-                        fallbackClassName=""
-                      />
-                      <div className="grid flex-1 text-left text-sm leading-tight text-slate-300">
-                        <span className="truncate font-semibold">
-                          {user.firstName} {user.lastName}
-                        </span>
-                        <span className="truncate text-xs">
-                          {user.email}
-                        </span>
+                      <div className="flex items-center justify-center group-disabled:opacity-50 group-data-disabled:opacity-50 icon-lg">
+                        <div className="flex overflow-hidden rounded-full select-none bg-gray-500/30 h-6 w-6 shrink-0">
+                          <UserAvatar 
+                            user={user} 
+                            className="h-6 w-6 shrink-0 object-cover rounded-full"
+                            fallbackClassName="h-6 w-6 shrink-0 object-cover rounded-full"
+                          />
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex min-w-0 px-2 grow items-center gap-2.5 group-data-no-contents-gap:gap-0">
+                          <div className="truncate text-slate-300 font-normal text-sm">
+                            {user.isGuest ? 'Guest User' : `${user.firstName} ${user.lastName}`}
+                          </div>
+                        </div>
                       </div>
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
-                    className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                    className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-sm border border-background shadow-xl bg-card no-focus-ring"
                     side="bottom"
                     align="end"
                     sideOffset={4}
@@ -1147,14 +1199,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                     {/* Account Section - Hidden for guests */}
                     {!user.isGuest && (
                       <DropdownMenuLabel className="p-0 font-normal">
-                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm w-full bg-transparent hover:bg-accent hover:text-accent-foreground rounded-sm transition-colors cursor-pointer"
+                        <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm w-full 
+                        bg-transparent hover:bg-muted-foreground/10 hover:text-accent-foreground rounded-sm transition-colors cursor-pointer"
                           onClick={() => window.open(`/account`, '_blank')}
                         >
-                          <UserAvatar 
-                            user={user} 
-                            className="h-8 w-8 rounded-full"
-                            fallbackClassName=""
-                          />
+                          <div className="flex overflow-hidden rounded-full select-none bg-gray-500/30 h-8 w-8 shrink-0">
+                            <UserAvatar 
+                              user={user} 
+                              className="h-8 w-8 shrink-0 object-cover rounded-full"
+                              fallbackClassName="h-8 w-8 shrink-0 object-cover rounded-full"
+                            />
+                          </div>
                           <div className="grid flex-1 text-left text-sm leading-tight">
                             <span className="truncate font-semibold">
                               Account
@@ -1164,18 +1219,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                       </DropdownMenuLabel>
                     )}
                     
-                    {!user.isGuest && <DropdownMenuSeparator />}
+                    {!user.isGuest}
                     
                     {/* Settings - Hidden for guests */}
                     {!user.isGuest && (
-                      <DropdownMenuItem onClick={() => window.open(`/settings`, '_blank')} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => window.open(`/settings`, '_blank')} className="cursor-pointer hover:bg-muted-foreground/10">
                         <Settings className="h-4 w-4"/>
                         Settings
                       </DropdownMenuItem>
                     )}
                     
                     {/* Documentation - Always visible */}
-                    <DropdownMenuItem onClick={() => window.open(`/docs`, '_blank')} className="cursor-pointer">
+                    <DropdownMenuItem onClick={() => window.open(`/docs`, '_blank')} className="cursor-pointer bg-card rounded-md hover:bg-muted-foreground/10">
                       <BookOpen className="h-4 w-4" />
                       Documentation
                     </DropdownMenuItem>
@@ -1184,7 +1239,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                     
                     {/* Log in for guests, Log out for authenticated users */}
                     {user.isGuest ? (
-                      <DropdownMenuItem onClick={() => setShowLoginDialog(true)} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => setShowLoginDialog(true)} className="cursor-pointer hover:bg-muted-foreground/10">
                         <LogIn className="h-4 w-4" />
                         Log in
                       </DropdownMenuItem>
@@ -1206,7 +1261,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                         } catch (error) {
                           console.error('Logout error:', error);
                         }
-                      }} className="cursor-pointer">
+                      }} className="cursor-pointer hover:bg-muted-foreground/10">
                         <LogOut className="h-4 w-4" />
                         Log out
                       </DropdownMenuItem>
@@ -1786,8 +1841,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
             <Login onSuccess={handleLoginSuccess} />
           </DialogContent>
         </Dialog>
+
+        {/* Feedback Popup */}
+        <ChatFeedbackPopup
+          isOpen={showFeedbackPopup}
+          onClose={() => setShowFeedbackPopup(false)}
+          onSubmitFeedback={() => setShowFeedbackPopup(false)}
+        />
       </div>
-      
       {/* Toast notifications */}
       <Toaster />
     </SidebarProvider>

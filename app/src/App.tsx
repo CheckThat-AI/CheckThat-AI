@@ -18,6 +18,7 @@ import AuthCallback from '@/pages/AuthCallback';
 import ChatInterface from '@/components/ChatInterface';
 
 
+
 interface UserInfo {
   id: string;
   email?: string;
@@ -150,7 +151,9 @@ function App() {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+    };
   }, [user]);
 
   const handleLogout = async () => {
