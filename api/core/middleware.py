@@ -63,7 +63,8 @@ class EndpointSpecificCORSMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         origin = request.headers.get("origin")
-        path = request.path
+        # Get path from request scope (always available)
+        path = request.scope.get("path", "/")
         
         # Get allowed origins and methods for this endpoint
         allowed_origins = self.get_allowed_origins(path)
