@@ -18,9 +18,16 @@ class GeminiModel:
     This class is used to generate responses from the Gemini API.
     """
     def __init__(self, model: str, api_key: str = None):
-        self.model = model
         try:
+            if not api_key:
+                raise ValueError("Gemini API key is required but not provided")
+            
+            self.model = model
             self.api_key = api_key
+            logger.info(f"Initializing Gemini client for model: {model}")
+            # Avoid logging API key length to prevent leaking sensitive information
+            logger.debug(f"API key present: {bool(api_key)}")
+            
             self.client = genai.Client(api_key=self.api_key)
         except Exception as e:
             logger.error(f"Gemini Client creation error: {str(e)}")
@@ -28,6 +35,9 @@ class GeminiModel:
     
     def generate_streaming_response(self, sys_prompt: str, user_prompt: str, conversation_history: Optional[List[ChatMessage]] = None) -> Generator[str, None, None]:
         try:
+            logger.info(f"Starting Gemini streaming response for model: {self.model}")
+            logger.debug(f"API key configured: {bool(self.api_key)}")
+            
             # Format messages with conversation history
             if conversation_history:
                 system_instruction, contents = conversation_manager.format_for_gemini(sys_prompt, conversation_history, user_prompt)
