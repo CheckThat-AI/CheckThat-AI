@@ -4,8 +4,8 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # API Configuration
-    title: str = "Claim Extraction and Normalization"
-    description: str = "API for the CLEF 2025 CheckThat Lab Task 2"
+    title: str = "CheckThat AI - Advanced Claim Normalization & Fact-Checking Platform"
+    description: str = "API for the CheckThat AI Platform"
     version: str = "1.0.0"
     
     # Environment
@@ -32,8 +32,8 @@ class Settings(BaseSettings):
             # For production public API, allow all origins
             return ["*"]
         else:
-            # Default to specific origins for security
-            return ["https://nikhil-kadapala.github.io", "https://www.checkthat-ai.com", "https://checkthat-ai.com/"]
+            # Default to public access for public API endpoints
+            return ["*"]
     
     class Config:
         env_file = ".env"
