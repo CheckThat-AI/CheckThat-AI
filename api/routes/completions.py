@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 import time
+import json
 from ..utils.LLMRouter import LLMRouter
 from ..utils.models import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
 from ..models.requests import ChatMessage  # reuse your ChatMessage
@@ -84,7 +85,7 @@ async def chat_completions(req: ChatCompletionsRequest):
         # Pass the API key if provided by the client, otherwise use environment variables
         api_key = req.api_key if req.api_key else None
         client = LLMRouter(req.model, api_key=api_key).get_api_client()
-        print(f"Created client: {type(client)} (using {'provided API key' if api_key else 'environment variables'})")
+        
     except Exception as e:
         print(f"Error in setup: {e}")
         import traceback
@@ -131,7 +132,7 @@ async def chat_completions(req: ChatCompletionsRequest):
                         "finish_reason": None,
                     }],
                 }
-                yield f"data: {data}\n\n"
+                yield f"data: {json.dumps(data)}\n\n"
             # final chunk with finish_reason
             end = {
                 "id": cid,
@@ -144,21 +145,12 @@ async def chat_completions(req: ChatCompletionsRequest):
                     "finish_reason": "stop",
                 }],
             }
-            yield f"data: {end}\n\n"
+            yield f"data: {json.dumps(end)}\n\n"
             yield "data: [DONE]\n\n"
         except Exception as e:
             # Emit a final chunk with error, then close
             err = {"error": str(e)}
-            yield f"data: {err}\n\n"
+            yield f"data: {json.dumps(err)}\n\n"
             yield "data: [DONE]\n\n"
 
     return StreamingResponse(sse_stream(), media_type="text/event-stream")
-
-@router.post("/debug")
-async def debug_request(req: ChatCompletionsRequest):
-    """Debug endpoint to verify API key pass-through"""
-    return {
-        "model": req.model,
-        "message_count": len(req.messages),
-        "stream": req.stream,
-    }        
