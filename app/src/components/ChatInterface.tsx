@@ -1748,11 +1748,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
                             <SelectGroup>
                           <SelectLabel className="font-semibold text-xs text-blue-800 uppercase tracking-wider">Google AI</SelectLabel>
                               {models.filter(m => m.provider === 'Google').map((model) => (
-                                <SelectItem key={model.value} value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{model.label}</span>
-                                  </div>
-                                </SelectItem>
+                                <Tooltip key={model.value}>
+                                  <TooltipTrigger asChild>
+                                    <SelectItem value={model.value} className="text-foreground focus:bg-accent focus:text-accent-foreground cursor-pointer">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-medium">{model.label}</span>
+                                      </div>
+                                    </SelectItem>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left" className="max-w-xs">
+                                    <p className="text-sm">Available for free till Sep 15. Rate limits apply: 10 Req/min</p>
+                                  </TooltipContent>
+                                </Tooltip>
                               ))}
                             </SelectGroup>
                             <SelectSeparator className="bg-border" />
