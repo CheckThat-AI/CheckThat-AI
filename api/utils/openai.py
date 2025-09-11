@@ -15,10 +15,10 @@ class OpenAIModel:
     """
     This class is used to generate responses from the OpenAI API.
     """
-    def __init__(self, model: str, api_key: Optional[str] = None):
+    def __init__(self, model: str, api_key: str = None):
         self.model = model
         try:
-            self.api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY")
+            self.api_key = api_key
             self.client = OpenAI(api_key=self.api_key)
         except Exception as e:
             logger.error(f"OpenAI Client creation error: {str(e)}")
@@ -31,13 +31,16 @@ class OpenAIModel:
                 messages = conversation_manager.format_for_openai(sys_prompt, conversation_history, user_prompt)
             else:
                 # Fallback to single-turn format
-                messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}]
-            
+                if sys_prompt:
+                    messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}]
+                else:
+                    messages = [{"role": "user", "content": user_prompt}]
+
             logger.info(f"OpenAI API call with {len(messages)} messages")
-            
+
             stream = self.client.chat.completions.create(
-                model=self.model,
                 messages=messages,
+                model=self.model,
                 stream=True
             )
             for chunk in stream:

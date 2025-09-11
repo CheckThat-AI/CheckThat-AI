@@ -9,7 +9,7 @@ from starlette.concurrency import iterate_in_threadpool
 # Import from the utils folder that's now inside the api folder
 from ..utils.LLMRouter import LLMRouter
 from ..utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
-from ..utils.llms import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
+from ..utils.models import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
 from ..utils.conversation_manager import conversation_manager
 from ..models.requests import ChatRequest
 
@@ -38,8 +38,12 @@ async def chat_interface(request: ChatRequest):
                 status_code=400,
                 detail="User query cannot be empty"
             )
-
-        client = LLMRouter(request.model).get_api_client()
+        if request.model in TOGETHER_MODELS:
+            api_key = os.getenv("TOGETHER_API_KEY")  
+        elif request.model in GEMINI_MODELS:
+            api_key = os.getenv("GEMINI_API_KEY")  
+            
+        client = LLMRouter(model=request.model, api_key=api_key).get_api_client()
 
         # Retrieve conversation history if conversation_id is provided
         conversation_history = []
