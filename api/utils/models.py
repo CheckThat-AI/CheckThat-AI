@@ -1,14 +1,14 @@
-OPENAI_MODELS = ["gpt-4o-2024-11-20", "gpt-4.1-2025-04-14", "o4-mini-2025-04-16"]
-OPENAI_MODEL_LABELS = ["GPT-4o", "GPT-4.1", "o4-mini"]
+OPENAI_MODELS = ["gpt-5-2025-08-07", "gpt-5-nano-2025-08-07", "o3-2025-04-16", "o4-mini-2025-04-16"]
+OPENAI_MODEL_LABELS = ["GPT-5", "GPT-5 nano", "o3", "o4-mini"]
 
-xAI_MODELS =  ["grok-3", "grok-4-0709"]
-xAI_MODEL_LABELS = ["Grok 3", "Grok 4"]
+xAI_MODELS =  ["grok-3", "grok-4-0709", "grok-3-mini"]
+xAI_MODEL_LABELS = ["Grok 3", "Grok 4", "Grok 3 Mini"]
 
 TOGETHER_MODELS = ["meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", "deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free"]
 TOGETHER_MODEL_LABELS = ["Llama 3.3 70B", "DeepSeek R1 Distill Llama 70B"]
 
-ANTHROPIC_MODELS = ["claude-sonnet-4-20250514", "claude-opus-4-20250514"]
-ANTHROPIC_MODEL_LABELS = ["Claude Sonnet 4", "Claude Opus 4"]
+ANTHROPIC_MODELS = ["claude-sonnet-4-20250514", "claude-opus-4-1-20250805"]
+ANTHROPIC_MODEL_LABELS = ["Claude Sonnet 4", "Claude Opus 4.1"]
 
 GEMINI_MODELS = ["gemini-2.5-pro", "gemini-2.5-flash"]
 GEMINI_MODEL_LABELS = ["Gemini 2.5 Pro", "Gemini 2.5 Flash"]
