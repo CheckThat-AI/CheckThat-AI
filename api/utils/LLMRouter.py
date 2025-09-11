@@ -9,7 +9,7 @@ from .togetherAI import TogetherModel
 from .gemini import GeminiModel
 from .anthropic import AnthropicModel
 
-from ..utils.llms import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
+from ..utils.models import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
 
 class LLMRouter:
     def __init__(self, model: str, api_key: Optional[str] = None):
@@ -24,6 +24,8 @@ class LLMRouter:
             self.api_provider = 'ANTHROPIC'
         elif model in GEMINI_MODELS:
             self.api_provider = 'GEMINI'
+        else:
+            raise ValueError(f"Unsupported model: {model}")
         self.api_key = api_key
         
     def get_api_client(self)->Union[OpenAIModel, xAIModel, TogetherModel, AnthropicModel, GeminiModel]:
@@ -37,5 +39,6 @@ class LLMRouter:
             return AnthropicModel(model=self.model, api_key=self.api_key)
         elif self.api_provider == 'GEMINI':
             return GeminiModel(model=self.model, api_key=self.api_key)
-        
+        else:
+            raise ValueError(f"Unsupported API provider: {self.api_provider}")
     
