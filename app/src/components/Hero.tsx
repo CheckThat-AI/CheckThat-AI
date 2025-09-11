@@ -8,10 +8,10 @@ interface HeroProps {
 
 const Hero = ({ onStartGuestSession }: HeroProps) => {
   const navigate = useNavigate();
-  const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>, href: string) => {
-    e.preventDefault();
-    window.location.href = href;
-  };
+  // const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement> | React.MouseEvent<HTMLButtonElement>, href: string) => {
+  //   e.preventDefault();
+  //   window.location.href = href;
+  // };
 
   const handleTryForFree = () => {
     onStartGuestSession();
@@ -57,12 +57,12 @@ const Hero = ({ onStartGuestSession }: HeroProps) => {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <button 
+              {/* <button 
                 onClick={(e) => handleLinkClick(e, '/chat')}
                 className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-8 py-4 rounded-full transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
                 Request a Demo
-              </button>
+              </button> */}
               <Button 
                 size="lg"
                 onClick={handleTryForFree}
