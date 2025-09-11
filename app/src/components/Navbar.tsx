@@ -29,8 +29,8 @@ const navigationItems: NavigationItem[] = [
     description: 'Explore our comprehensive platform capabilities'
   },
   { 
-    label: 'Documentation', 
-    href: '#docs',
+    label: 'Docs', 
+    href: 'https://docs.checkthat-ai.com/',
     description: 'Learn how to use CheckThat.AI effectively'
   },
   { 
@@ -44,6 +44,12 @@ const navigationItems: NavigationItem[] = [
     href: '#contact',
     description: 'Get in touch with our team'
   },
+  {
+    label: 'Feedback',  
+    href: 'https://docs.google.com/forms/d/e/1FAIpQLScyQB7-vpfaOGtXfXSbwdpT6ytrVG-TT9k6GT8v8wEO_ivAAA/viewform?usp=header',
+    external: true,
+    description: 'Share your feedback with us'
+  }
 ];
 
 export default function Navbar() {
@@ -180,7 +186,7 @@ export default function Navbar() {
         <div className="hidden md:flex">
           <NavigationMenu>
             <NavigationMenuList>
-              <NavigationMenuItem>
+              {/* <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
@@ -192,9 +198,9 @@ export default function Navbar() {
                     {navigationItems[0].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem>
+              </NavigationMenuItem> */}
               
-              {/* <NavigationMenuItem>
+              <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
@@ -202,27 +208,31 @@ export default function Navbar() {
                   <a
                     href={navigationItems[1].href}
                     onClick={(e) => handleLinkClick(e, navigationItems[1].href)}
+                    target={navigationItems[1].href.startsWith('http') || navigationItems[1].external ? '_blank' : undefined}
+                    rel={navigationItems[1].href.startsWith('http') || navigationItems[1].external ? 'noopener noreferrer' : undefined}
                   >
                     {navigationItems[1].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem> */}
+              </NavigationMenuItem>
               
-              {/* <NavigationMenuItem>
+              <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
                 >
                   <a
-                    href={navigationItems[2].href}
-                    onClick={(e) => handleLinkClick(e, navigationItems[2].href)}
+                    href={navigationItems[4].href}
+                    onClick={(e) => handleLinkClick(e, navigationItems[4].href)}
+                    target={navigationItems[4].href.startsWith('http') || navigationItems[4].external ? '_blank' : undefined}
+                    rel={navigationItems[4].href.startsWith('http') || navigationItems[4].external ? 'noopener noreferrer' : undefined}
                   >
-                    {navigationItems[2].label}
+                    {navigationItems[4].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem> */}
+              </NavigationMenuItem>
               
-              <NavigationMenuItem>
+              {/* <NavigationMenuItem>
                 <NavigationMenuLink 
                   className={navigationMenuTriggerStyle()}
                   asChild
@@ -234,7 +244,7 @@ export default function Navbar() {
                     {navigationItems[3].label}
                   </a>
                 </NavigationMenuLink>
-              </NavigationMenuItem>
+              </NavigationMenuItem> */}
             </NavigationMenuList>
           </NavigationMenu>
         </div>
