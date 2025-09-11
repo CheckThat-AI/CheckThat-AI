@@ -156,15 +156,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ user }) => {
   }, [showFeedbackPopup]);
 
   const models = [
-    { value: 'gpt-4o-2024-11-20', label: 'GPT-4o', provider: 'OpenAI', isPaid: true },
-    { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1', provider: 'OpenAI', isPaid: true },
+    { value: 'gpt-5-2025-08-07', label: 'GPT-5', provider: 'OpenAI', isPaid: true },
+    { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 nano', provider: 'OpenAI', isPaid: true },
+    { value: 'o3-2025-04-16', label: 'o3', provider: 'OpenAI', isPaid: true },
     { value: 'o4-mini-2025-04-16', label: 'o4-mini', provider: 'OpenAI', isPaid: true },
     { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'Anthropic', isPaid: true },
-    { value: 'claude-opus-4-20250514', label: 'Claude Opus 4', provider: 'Anthropic', isPaid: true },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'Google', isPaid: true },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'Google', isPaid: true },
+    { value: 'claude-opus-4-1-20250805', label: 'Claude Opus 4.1', provider: 'Anthropic', isPaid: true },
+    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', provider: 'Google', isPaid: false },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', provider: 'Google', isPaid: false },
     { value: 'grok-4-0709', label: 'Grok 4', provider: 'xAI', isPaid: true },
     { value: 'grok-3', label: 'Grok 3', provider: 'xAI', isPaid: true },
+    { value: 'grok-3-mini', label: 'Grok 3 Mini', provider: 'xAI', isPaid: true },
     { value: 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free', label: 'Llama 3.3 70B', provider: 'Together AI', isPaid: false },
     { value: 'deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free', label: 'DeepSeek R1 Distill Llama 70B', provider: 'Together AI', isPaid: false },
   ];
