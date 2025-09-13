@@ -24,10 +24,6 @@ class GeminiModel:
             
             self.model = model
             self.api_key = api_key
-            logger.info(f"Initializing Gemini client for model: {model}")
-            # Avoid logging API key length to prevent leaking sensitive information
-            logger.debug(f"API key present: {bool(api_key)}")
-            
             self.client = genai.Client(api_key=self.api_key)
         except Exception as e:
             logger.error(f"Gemini Client creation error: {str(e)}")
@@ -35,9 +31,6 @@ class GeminiModel:
     
     def generate_streaming_response(self, sys_prompt: str, user_prompt: str, conversation_history: Optional[List[ChatMessage]] = None) -> Generator[str, None, None]:
         try:
-            logger.info(f"Starting Gemini streaming response for model: {self.model}")
-            logger.debug(f"API key configured: {bool(self.api_key)}")
-            
             # Format messages with conversation history
             if conversation_history:
                 system_instruction, contents = conversation_manager.format_for_gemini(sys_prompt, conversation_history, user_prompt)
@@ -45,8 +38,6 @@ class GeminiModel:
                 # Fallback to single-turn format
                 system_instruction = sys_prompt
                 contents = [types.Part.from_text(text=user_prompt)]
-            
-            logger.info(f"Gemini API call with {len(contents)} content parts")
             
             stream = self.client.models.generate_content_stream(
                 model=self.model,
