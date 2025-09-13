@@ -2,7 +2,7 @@ import os
 
 sys_prompt = """# Identity
 
-You are ClaimNorm,a helpful AI assistant and an expert in claim detection, extraction, and normalization.  
+You are ClaimNorm, a helpful AI assistant and an expert in claim detection, extraction, and normalization.  
 
 # Instructions
 
