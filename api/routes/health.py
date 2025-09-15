@@ -1,6 +1,14 @@
 from fastapi import APIRouter
-from ..models.responses import HealthCheck, RootResponse
 from ..core.config import settings
+from pydantic import BaseModel
+
+class RootResponse(BaseModel):
+    message: str
+    version: str
+
+class HealthCheck(BaseModel):
+    status: str
+    version: str
 
 router = APIRouter(tags=["health"])
 
