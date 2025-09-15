@@ -2,9 +2,10 @@ import os
 import json
 import logging
 from together import Together
-from typing import Generator, Union, Type, Optional, Any, List
+from typing import Generator, Union, Type, Optional, Any, List, Dict
 from fastapi import HTTPException
 from json import JSONDecodeError
+import json
 from ..schemas.claims import NormalizedClaim
 from ..schemas.feedback import Feedback
 from .conversation_manager import conversation_manager
@@ -48,24 +49,67 @@ class TogetherModel:
             logger.error(f"Together API response error: {str(e)}")
             raise
     
-    def generate_structured_response(self, sys_prompt: str, user_prompt: str, response_format: Type[Union[NormalizedClaim, Feedback]]) -> Union[NormalizedClaim, Feedback]:
+    def generate_structured_response(self, sys_prompt: str, user_prompt: str, conversation_history: Optional[List[ChatMessage]] = None, response_format: Optional[Union[Type[Union[NormalizedClaim, Feedback]], Dict[str, Any]]] = None) -> Any:
         try:
-            # Get complete response without streaming
-            response = self.client.chat.completions.create(
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}],
-                model=self.model,
-                response_format={
-                    "type": "json_object",
-                    "schema": response_format.model_json_schema(),
-                }
-            )
-            parsed_response = response.choices[0].message.content
-            if parsed_response is not None:
-                return response_format(**parsed_response)
+            # Format messages with conversation history
+            if conversation_history:
+                messages = conversation_manager.format_for_openai(sys_prompt, conversation_history, user_prompt)
             else:
-                raise TypeError("Together Model Error: Generated response is None")
+                # Fallback to single-turn format
+                if sys_prompt:
+                    messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}]
+                else:
+                    messages = [{"role": "user", "content": user_prompt}]
+
+            # Determine the response format
+            if isinstance(response_format, dict):
+                # Handle response_format as dict (from API request)
+                if response_format.get("type") == "json_schema" and "json_schema" in response_format:
+                    json_schema = response_format["json_schema"]
+                    schema = json_schema.get("schema", {})
+                    
+                    # Get complete response without streaming
+                    response = self.client.chat.completions.create(
+                        messages=messages,
+                        model=self.model,
+                        response_format={
+                            "type": "json_object",
+                            "schema": schema,
+                        }
+                    )
+                    content = response.choices[0].message.content
+                    try:
+                        parsed_data = json.loads(content) if content else None
+                        # Return an object with both content and parsed data
+                        class StructuredResponse:
+                            def __init__(self, content: str, parsed: Any):
+                                self.content = content
+                                self.parsed = parsed
+                        return StructuredResponse(content=content, parsed=parsed_data)
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse JSON response: {content}")
+                        return StructuredResponse(content=content, parsed=None)
+                else:
+                    raise ValueError("Invalid response_format structure")
+            else:
+                # Handle response_format as Pydantic model (legacy support)
+                response = self.client.chat.completions.create(
+                    messages=messages,
+                    model=self.model,
+                    response_format={
+                        "type": "json_object",
+                        "schema": response_format.model_json_schema(),
+                    }
+                )
+                parsed_response = response.choices[0].message.content
+                if parsed_response is not None:
+                    return response_format(**json.loads(parsed_response))
+                else:
+                    raise TypeError("Together Model Error: Generated response is None")
+                    
         except JSONDecodeError as e:
             logger.error(f"JSON decode error: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Error processing response: {str(e)}")
+            logger.error(f"Error processing structured response: {str(e)}")
             raise
