@@ -1,9 +1,11 @@
 import os
 import logging
 from openai import OpenAI
-from typing import Generator, Union, Type, Any, Optional, List
+from openai.types.chat.completion_create_params import ResponseFormat
+from typing import Generator, Union, Type, Any, Optional, List, Dict
 from fastapi import HTTPException
 from json import JSONDecodeError
+import json
 from ..schemas.claims import NormalizedClaim
 from ..schemas.feedback import Feedback
 from .conversation_manager import conversation_manager
@@ -26,11 +28,9 @@ class OpenAIModel:
         
     def generate_streaming_response(self, sys_prompt: str, user_prompt: str, conversation_history: Optional[List[ChatMessage]] = None) -> Generator[str, None, None]:
         try:
-            # Format messages with conversation history
             if conversation_history:
                 messages = conversation_manager.format_for_openai(sys_prompt, conversation_history, user_prompt)
             else:
-                # Fallback to single-turn format
                 if sys_prompt:
                     messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}]
                 else:
@@ -50,19 +50,29 @@ class OpenAIModel:
             logger.error(f"OpenAI API response error: {str(e)}")
             raise
 
-    def generate_structured_response(self, sys_prompt: str, user_prompt: str, response_format: Type[Union[NormalizedClaim, Feedback]]) -> Union[NormalizedClaim, Feedback, None]:
+    def generate_structured_response(self, sys_prompt: str, user_prompt: str, response_format: ResponseFormat = None, conversation_history: Optional[List[ChatMessage]] = None) -> Any:
         try:
-            response = self.client.beta.chat.completions.parse(
+            if conversation_history:
+                messages = conversation_manager.format_for_openai(sys_prompt, conversation_history, user_prompt)
+            else:
+                if sys_prompt:
+                    messages = [{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}]
+                else:
+                    messages = [{"role": "user", "content": user_prompt}]
+
+            response = self.client.chat.completions.parse(
                 model=self.model,
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": user_prompt}],
+                messages=messages,
                 response_format=response_format
             )
             parsed_response = response.choices[0].message.parsed
             if parsed_response is not None:
                 return parsed_response
             else:
-                raise TypeError("OpenAI Model Error: Generated response is None")
+                raise TypeError("OpenAI Error: Model failed to generate structured response")              
         except JSONDecodeError as e:
             logger.error(f"JSON decode error: {str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Error processing response: {str(e)}")
+            logger.error(f"Error processing structured response: {str(e)}")
+            raise
