@@ -57,7 +57,7 @@ async def chat_interface(request: ChatRequest):
         else:
             api_key = request.api_key
             
-        client = LLMRouter(model=request.model, api_key=api_key).get_api_client()
+        client = LLMRouter(model=request.model, api_key=api_key).getAPIClient()
 
         # Retrieve conversation history if conversation_id is provided
         conversation_history = []
