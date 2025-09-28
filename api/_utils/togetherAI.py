@@ -44,7 +44,7 @@ class TogetherModel:
                 messages=messages,
                 model=self.model,
             )
-            return response.choices[0].message.content
+            return response
         except Exception as e:
             logger.error(f"Together API response error: {str(e)}")
             raise
