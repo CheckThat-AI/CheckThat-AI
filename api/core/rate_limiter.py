@@ -31,7 +31,7 @@ class RobustRateLimiter:
     - Configurable limits per endpoint
     """
     
-    def __init__(self, max_requests: int = 10, window_seconds: int = 60):
+    def __init__(self, max_requests: int = 100, window_seconds: int = 60):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.clients: Dict[str, RateLimitInfo] = {}
