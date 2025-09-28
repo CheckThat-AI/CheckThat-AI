@@ -104,7 +104,7 @@ class RefinementService:
                 {current_claim}
 
                 ## Feedback
-                {eval_result.reason}
+                {eval_result.test_results[0].metrics_data[0].reason}
 
                 ## Task
                 Refine the current response based on the feedback to improve its accuracy, verifiability, and overall quality.
