@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from . import health, chat
-from .completions import router as completions_router
+from .chat.completions import router as completions_router
 from .models import router as models_list
 
 # Create main API router

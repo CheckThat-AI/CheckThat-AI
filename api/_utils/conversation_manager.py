@@ -10,7 +10,7 @@ import logging
 import tiktoken
 from typing import List, Dict, Any, Optional, Tuple
 from supabase import create_client, Client
-from ..models.requests import ChatMessage
+
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,12 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY) if SUPABASE_URL and SUPABASE_SERVICE_KEY else None
+
+ChatMessage = {
+    "role": str,
+    "content": str,
+    "timestamp": Optional[str]
+}
 
 class ConversationManager:
     """Manages conversation history for multi-turn chat"""

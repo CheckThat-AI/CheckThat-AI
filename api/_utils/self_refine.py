@@ -1,10 +1,18 @@
 import os
 import json
 from typing import Any, Dict, List, Tuple, Optional
-from ..schemas.claims import NormalizedClaim
-from ..schemas.feedback import Feedback
+from ..types.claims import NormalizedClaim
+from ..types.feedback import Feedback
 from .LLMRouter import LLMRouter
-from .prompts import sys_prompt, instruction, chain_of_thought_trigger, few_shot_prompt, few_shot_CoT_prompt, feedback_prompt, feedback_sys_prompt, refine_sys_prompt
+from .prompts import (
+    sys_prompt, instruction, 
+    chain_of_thought_trigger, 
+    few_shot_prompt, 
+    few_shot_CoT_prompt, 
+    feedback_prompt, 
+    feedback_sys_prompt, 
+    refine_sys_prompt
+)
 
 def format_feedback_for_prompt(feedback: Feedback) -> str:
     """Format feedback into readable text for LLM consumption"""
@@ -27,7 +35,14 @@ def format_feedback_for_prompt(feedback: Feedback) -> str:
     
     return "\n".join(formatted_parts)
 
-def self_refine(model: str, user_prompt: str, prompt_style: str, refine_iters: int, cross_refine_model: Optional[str] = None, custom_prompt: Optional[str] = None) -> Tuple[str, List[Dict[str, Any]]]:
+def self_refine(
+    model: str, 
+    user_prompt: str, 
+    prompt_style: str, 
+    refine_iters: int, 
+    cross_refine_model: Optional[str] = None, 
+    custom_prompt: Optional[str] = None
+) -> Tuple[str, List[Dict[str, Any]]]:
     """
     This function takes a list of models, a user prompt, and a list of prompt styles,
     and returns the generated response using the first model and prompt style in the lists.

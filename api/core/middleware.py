@@ -1,8 +1,10 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from starlette.middleware.base import BaseHTTPMiddleware
 from .config import settings
 from .rate_limiter import rate_limit_middleware
+import secrets
 
 class EndpointSpecificCORSMiddleware(BaseHTTPMiddleware):
     """Custom CORS middleware that applies different origins based on endpoint paths"""
@@ -109,23 +111,27 @@ class EndpointSpecificCORSMiddleware(BaseHTTPMiddleware):
         
         return response
 
+
+
+
 def setup_middleware(app: FastAPI) -> None:
     """Configure middleware for the FastAPI application"""
-    
+
     # Add rate limiting middleware (CRITICAL for guest mode)
     app.middleware("http")(rate_limit_middleware)
-    
+
+
     # Configure endpoint-specific CORS
     # Restricted origins for /chat endpoint
     restricted_origins = [
         "https://nikhil-kadapala.github.io",
-        "https://www.checkthat-ai.com", 
+        "https://www.checkthat-ai.com",
         "https://checkthat-ai.com"
     ]
-    
+
     # Public origins for /v1/* endpoints (completions and models)
     public_origins = settings.allowed_origins
-    
+
     app.add_middleware(
         EndpointSpecificCORSMiddleware,
         restricted_origins=restricted_origins,
