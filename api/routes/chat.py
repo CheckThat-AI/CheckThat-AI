@@ -8,10 +8,10 @@ from starlette.concurrency import iterate_in_threadpool
 from pydantic import BaseModel
 
 # Import from the utils folder that's now inside the api folder
-from ..utils.LLMRouter import LLMRouter
-from ..utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
-from ..utils.models import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
-from ..utils.conversation_manager import conversation_manager
+from .._utils.LLMRouter import LLMRouter
+from .._utils.prompts import sys_prompt, few_shot_CoT_prompt, chat_guide
+from .._types import OPENAI_MODELS, xAI_MODELS, TOGETHER_MODELS, ANTHROPIC_MODELS, GEMINI_MODELS
+from .._utils.conversation_manager import conversation_manager
 
 class ChatMessage(BaseModel):
     role: str  # 'user' | 'assistant' | 'system'
