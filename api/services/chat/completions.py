@@ -335,7 +335,7 @@ class ChatCompletionService:
                 response=response,
                 client=client,
                 api_key=api_key,
-                original_query=f"{instruction}:{user_message}",
+                original_query=user_message,
                 checkthat_config=checkthat_config
             )
             self.logger.info("✨ Custom CheckThat AI features applied")
