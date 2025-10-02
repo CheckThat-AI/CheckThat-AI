@@ -9,6 +9,7 @@ import logging
 import re
 from typing import Dict, Any, List, Optional, Tuple, Union
 from datetime import datetime
+import nest_asyncio
 
 from api._utils.openai import OpenAIModel
 from api._utils.gemini import GeminiModel
@@ -26,6 +27,9 @@ from deepeval.metrics import GEval, BaseMetric
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from deepeval.tracing import observe
 from deepeval.models import GPTModel, GeminiModel, AnthropicModel, GrokModel
+
+# Apply nest_asyncio to allow nested event loops (required for DeepEval with uvloop)
+nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
