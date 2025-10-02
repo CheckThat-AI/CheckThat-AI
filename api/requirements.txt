@@ -31,4 +31,3 @@ deepeval
 
 # Utilities
 typing-extensions
-nest-asyncio
