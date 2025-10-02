@@ -7,9 +7,9 @@ and custom model integration for quality assessment and improvement.
 
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Any, List, Optional, Tuple, Union
 from datetime import datetime
-import nest_asyncio
 
 from api._utils.openai import OpenAIModel
 from api._utils.gemini import GeminiModel
@@ -28,11 +28,20 @@ from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 from deepeval.tracing import observe
 from deepeval.models import GPTModel, GeminiModel, AnthropicModel, GrokModel
 
-# Apply nest_asyncio to allow nested event loops (required for DeepEval with uvloop)
-nest_asyncio.apply()
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+# Thread pool executor for running DeepEval in isolated threads (avoids uvloop conflicts)
+_executor = ThreadPoolExecutor(max_workers=4)
+
+def _run_evaluation_in_thread(test_case: LLMTestCase, metric: BaseMetric):
+    """
+    Run DeepEval evaluation in a separate thread to avoid uvloop conflicts.
+    
+    This is necessary because DeepEval's evaluate() function creates its own
+    event loop internally, which conflicts with FastAPI's uvloop.
+    """
+    return evaluate(test_cases=[test_case], metrics=[metric])
 
 class RefinementService:
     def __init__(
@@ -83,7 +92,11 @@ class RefinementService:
                 actual_output=current_claim,
             )
             
-            eval_result = evaluate(test_cases=[test_case], metrics=[eval_metric])
+            # Run evaluation in thread pool to avoid uvloop conflicts
+            # Submit to executor and wait for result (blocking call)
+            future = _executor.submit(_run_evaluation_in_thread, test_case, eval_metric)
+            eval_result = future.result()  # This blocks until the thread completes
+            
             original_score = eval_result.test_results[0].metrics_data[0].score
             original_feedback = eval_result.test_results[0].metrics_data[0].reason
             
@@ -128,7 +141,12 @@ class RefinementService:
                     input=original_query,
                     actual_output=refined_claim,
                 )
-                eval_result = evaluate(test_cases=[test_case], metrics=[eval_metric])
+                
+                # Run evaluation in thread pool to avoid uvloop conflicts
+                # Submit to executor and wait for result (blocking call)
+                future = _executor.submit(_run_evaluation_in_thread, test_case, eval_metric)
+                eval_result = future.result()  # This blocks until the thread completes
+                
                 score = eval_result.test_results[0].metrics_data[0].score
                 feedback_text = eval_result.test_results[0].metrics_data[0].reason
                 
